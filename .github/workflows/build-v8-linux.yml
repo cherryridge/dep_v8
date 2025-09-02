@@ -334,7 +334,7 @@ jobs:
                 sudo apt install g++-14
                 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
                 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
-                sudo apt-get install -y ninja-build lld g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross libglib2.0-dev:arm64 libglib2.0-dev-bin:arm64 libglib2.0-bin:arm64 libmount-dev:arm64 libpcre2-dev:arm64 libselinux1-dev:arm64 python3-packaging:arm64
+                sudo apt-get install -y ninja-build lld g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross libglib2.0-dev:arm64 libglib2.0-dev-bin:arm64 libglib2.0-bin:arm64 libmount-dev:arm64 libpcre2-dev:arm64 libselinux1-dev:arm64 python3-packaging
                 sudo apt clean
                 sudo rm -rf /var/*
                 df -h
