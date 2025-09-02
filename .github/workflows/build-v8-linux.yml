@@ -322,6 +322,7 @@ jobs:
                 sudo rm -rf /usr/share/miniconda
                 sudo rm -rf /usr/share/perl
                 sudo rm -rf /usr/share/swift
+                sudo dpkg --add-architecture arm64
                 sudo apt update
                 sudo apt install g++-14
                 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
