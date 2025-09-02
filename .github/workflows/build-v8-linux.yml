@@ -323,6 +323,13 @@ jobs:
                 sudo rm -rf /usr/share/perl
                 sudo rm -rf /usr/share/swift
                 sudo dpkg --add-architecture arm64
+                sudo sed -ri '/^Components:/a Architectures: amd64' "/etc/apt/sources.list.d/ubuntu.sources"
+                sudo tee /etc/apt/sources.list.d/ubuntu-ports.list >/dev/null <<'EOF'
+                    deb [arch=arm64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports noble main universe restricted multiverse
+                    deb [arch=arm64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports noble-updates main universe restricted multiverse
+                    deb [arch=arm64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports noble-backports main universe restricted multiverse
+                    deb [arch=arm64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://ports.ubuntu.com/ubuntu-ports noble-security main universe restricted multiverse
+                EOF
                 sudo apt update
                 sudo apt install g++-14
                 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
