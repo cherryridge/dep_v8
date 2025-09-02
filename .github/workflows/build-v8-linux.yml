@@ -322,6 +322,7 @@ jobs:
                 sudo rm -rf /usr/share/miniconda
                 sudo rm -rf /usr/share/perl
                 sudo rm -rf /usr/share/swift
+                sudo apt install -y python3-packaging
                 sudo dpkg --add-architecture arm64
                 sudo sed -ri '/^Components:/a Architectures: amd64' "/etc/apt/sources.list.d/ubuntu.sources"
                 sudo tee /etc/apt/sources.list.d/ubuntu-ports.list >/dev/null <<'EOF'
@@ -334,7 +335,7 @@ jobs:
                 sudo apt install g++-14
                 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100
                 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
-                sudo apt-get install -y ninja-build lld python3-packaging g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross libglib2.0-dev:arm64 libglib2.0-dev-bin:arm64 libglib2.0-bin:arm64 libmount-dev:arm64 libpcre2-dev:arm64 libselinux1-dev:arm64
+                sudo apt install -y ninja-build lld g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross libglib2.0-dev:arm64 libglib2.0-dev-bin:arm64 libglib2.0-bin:arm64 libmount-dev:arm64 libpcre2-dev:arm64 libselinux1-dev:arm64
                 sudo apt clean
                 sudo rm -rf /var/*
                 df -h
