@@ -5,7 +5,7 @@ permissions:
 
 on:
     schedule:
-        - cron: "10 12 */7 * *"
+        - cron: "0 12 */7 * *"
     workflow_dispatch:
 
 jobs:
@@ -179,4 +179,5 @@ jobs:
                 artifacts: v8_windows_x64/v8_windows_x64_debug.7z, v8_windows_x64/v8_windows_x64_release.7z, v8_windows_arm64/v8_windows_arm64_debug.7z, v8_windows_arm64/v8_windows_arm64_release.7z, v8_linux_x64/v8_linux_x64_debug.7z, v8_linux_x64/v8_linux_x64_release.7z, v8_linux_arm64/v8_linux_arm64_debug.7z, v8_linux_arm64/v8_linux_arm64_release.7z, v8_macos_x64/v8_macos_x64_debug.7z, v8_macos_x64/v8_macos_x64_release.7z, v8_macos_arm64/v8_macos_arm64_debug.7z, v8_macos_arm64/v8_macos_arm64_release.7z
                 commit: ${{needs.update-version.outputs.updated_commit}}
                 tag: ${{needs.check.outputs.latest_version}}
+
                 body: Build for version ${{needs.check.outputs.latest_version}} (commit ${{needs.check.outputs.latest_commit}}).
