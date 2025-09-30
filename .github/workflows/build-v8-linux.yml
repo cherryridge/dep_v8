@@ -329,7 +329,6 @@ jobs:
                 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
                 sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
                 sudo apt clean
-                sudo rm -rf /var/*
                 df -h
 
           - name: Set Global Git Configs
