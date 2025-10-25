@@ -71,7 +71,7 @@ jobs:
           - name: Set XCode Version
             uses: maxim-lobanov/setup-xcode@v1.6.0
             with:
-                xcode-version: latest-stable
+                xcode-version: latest
 
           - name: Build V8 MacOS x64 Debug
             shell: bash
@@ -151,7 +151,7 @@ jobs:
           - name: Set XCode Version
             uses: maxim-lobanov/setup-xcode@v1.6.0
             with:
-                xcode-version: latest-stable
+                xcode-version: latest
 
           - name: Build V8 MacOS arm64 Debug
             shell: bash
