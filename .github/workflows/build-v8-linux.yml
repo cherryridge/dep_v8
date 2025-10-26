@@ -365,8 +365,6 @@ jobs:
                 gclient sync -D
                 python3 build/linux/sysroot_scripts/install-sysroot.py --arch=amd64
                 python3 build/linux/sysroot_scripts/install-sysroot.py --arch=arm64
-                test -f build/linux/debian_bullseye_amd64-sysroot/.stamp
-                test -f build/linux/debian_bullseye_arm64-sysroot/.stamp
                 gclient runhooks
 
           - name: Build V8 Linux arm64 Debug
@@ -374,6 +372,10 @@ jobs:
             run: |
                 df -h
                 cd v8/v8
+                cd build/linux
+                ls
+                cd debian_bullseye_amd64-sysroot
+                ls
                 gn gen out/arm64.debug --args='v8_target_cpu="arm64" target_cpu="arm64" use_sysroot=true is_debug=true symbol_level=2 is_clang=true is_component_build=false v8_static_library=true clang_use_chrome_plugins=false v8_enable_pointer_compression=true use_custom_libcxx=false use_custom_libcxx_for_host=false use_clang_modules=false use_glib=false use_lld=true v8_enable_partition_alloc=false v8_monolithic=true v8_use_external_startup_data=false icu_use_data_file=false v8_enable_sandbox=true v8_enable_webassembly=true treat_warnings_as_errors=false enable_iterator_debugging=true v8_enable_verify_heap=true v8_enable_object_print=true v8_enable_backtrace=true v8_enable_temporal_support=false'
                 ninja -C out/arm64.debug -j 3 v8_monolith
                 
