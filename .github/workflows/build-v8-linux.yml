@@ -134,6 +134,8 @@ jobs:
                 sudo apt clean
                 sudo rm -rf /var/*
                 df -h
+                gcc --version
+                g++ --version
 
           - name: Set Global Git Configs
             shell: bash
