@@ -133,8 +133,6 @@ jobs:
                 sudo apt clean
                 sudo rm -rf /var/*
                 df -h
-                gcc --version
-                g++ --version
 
           - name: Set Global Git Configs
             shell: bash
@@ -330,6 +328,7 @@ jobs:
                 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100
                 sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
                 sudo apt clean
+                sudo rm -rf /var/*
                 df -h
 
           - name: Set Global Git Configs
@@ -366,6 +365,8 @@ jobs:
                 gclient sync -D
                 python3 build/linux/sysroot_scripts/install-sysroot.py --arch=amd64
                 python3 build/linux/sysroot_scripts/install-sysroot.py --arch=arm64
+                test -f build/linux/debian_bullseye_amd64-sysroot/.stamp
+                test -f build/linux/debian_bullseye_arm64-sysroot/.stamp
                 gclient runhooks
 
           - name: Build V8 Linux arm64 Debug
