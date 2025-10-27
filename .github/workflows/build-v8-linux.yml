@@ -366,7 +366,6 @@ jobs:
                 cd build/linux
                 ls
                 python3 sysroot_scripts/install-sysroot.py --arch=amd64
-                python3 sysroot_scripts/install-sysroot.py --arch=arm64
                 gclient runhooks
 
           - name: Build V8 Linux arm64 Debug
