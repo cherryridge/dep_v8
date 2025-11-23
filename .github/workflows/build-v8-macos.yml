@@ -25,7 +25,7 @@ on:
                 required: true
 
 jobs:
-    x64:
+    x64-debug:
         runs-on: macos-latest
         steps:
 
@@ -80,6 +80,71 @@ jobs:
                 gn gen out/x64.debug --args='v8_target_cpu="x64" target_cpu="x64" is_debug=true symbol_level=2 is_clang=true is_component_build=false v8_static_library=true clang_use_chrome_plugins=false v8_enable_pointer_compression=true use_custom_libcxx=false use_custom_libcxx_for_host=false use_clang_modules=false v8_enable_partition_alloc=false v8_monolithic=true v8_use_external_startup_data=false icu_use_data_file=false v8_enable_sandbox=true v8_enable_webassembly=true treat_warnings_as_errors=false enable_iterator_debugging=true v8_enable_verify_heap=true v8_enable_object_print=true v8_enable_temporal_support=false'
                 ninja -C out/x64.debug v8_monolith
 
+          - name: Compress Product
+            shell: bash
+            run: |
+                echo "${{inputs.version}}" >> VERSION.txt
+                echo "${{inputs.commit}}" >> VERSION.txt
+                mkdir -p temp/include
+                cp -a ./v8/v8/include/* ./temp/include
+                7z a v8_macos_x64_debug.7z ./v8/v8/out/x64.debug/obj/libv8_monolith.a ./temp/include VERSION.txt
+        
+          - name: Upload Archive
+            uses: actions/upload-artifact@v4
+            with:
+                name: v8_macos_x64_debug
+                path: |
+                    *.7z
+                retention-days: 7
+
+    x64-release:
+        runs-on: macos-latest
+        steps:
+
+          - name: Checkout This Repo
+            uses: actions/checkout@v4
+            with:
+                clean: true
+                fetch-depth: 1
+
+          - name: Set Global Git Configs
+            shell: bash
+            run: |
+                git config --global core.autocrlf false
+                git config --global core.filemode false
+                git config --global core.longpaths true
+                git config --global core.preloadindex true
+                git config --global core.fscache true
+
+          - name: Check Depot Tools
+            uses: newkdev/setup-depot-tools@v1.0.1
+
+          - name: Checkout V8 Source Code
+            shell: bash
+            run: |
+                mkdir v8
+                cd v8
+                fetch v8
+
+          - name: Checkout Target Commit
+            shell: bash
+            run: |
+                cd v8/v8
+                git config branch.autosetupmerge always
+                git config branch.autosetuprebase always
+                git checkout ${{inputs.commit}}
+
+          - name: Sync GClient
+            shell: bash
+            run: |
+                cd v8/v8
+                gclient sync -D
+
+          - name: Set XCode Version
+            uses: maxim-lobanov/setup-xcode@v1.6.0
+            with:
+                xcode-version: latest-stable
+
           - name: Build V8 MacOS x64 Release
             shell: bash
             run: |
@@ -94,18 +159,17 @@ jobs:
                 echo "${{inputs.commit}}" >> VERSION.txt
                 mkdir -p temp/include
                 cp -a ./v8/v8/include/* ./temp/include
-                7z a v8_macos_x64_debug.7z ./v8/v8/out/x64.debug/obj/libv8_monolith.a ./temp/include VERSION.txt
                 7z a v8_macos_x64_release.7z ./v8/v8/out/x64.release/obj/libv8_monolith.a ./temp/include VERSION.txt
         
           - name: Upload Archive
             uses: actions/upload-artifact@v4
             with:
-                name: v8_macos_x64
+                name: v8_macos_x64_release
                 path: |
                     *.7z
                 retention-days: 7
 
-    arm64:
+    arm64-debug:
         runs-on: macos-latest
         steps:
 
@@ -160,6 +224,84 @@ jobs:
                 gn gen out/arm64.debug --args='v8_target_cpu="arm64" target_cpu="arm64" is_debug=true symbol_level=2 is_clang=true is_component_build=false v8_static_library=true clang_use_chrome_plugins=false v8_enable_pointer_compression=true use_custom_libcxx=false use_custom_libcxx_for_host=false use_clang_modules=false v8_enable_partition_alloc=false v8_monolithic=true v8_use_external_startup_data=false icu_use_data_file=false v8_enable_sandbox=true v8_enable_webassembly=true treat_warnings_as_errors=false enable_iterator_debugging=true v8_enable_verify_heap=true v8_enable_object_print=true v8_enable_temporal_support=false'
                 ninja -C out/arm64.debug v8_monolith v8_hello_world
 
+          - name: Test Product
+            shell: bash
+            run: |
+                set -e
+                chmod +x ./v8/v8/out/arm64.debug/v8_hello_world
+                output1=$(./v8/v8/out/arm64.debug/v8_hello_world)
+                if [[ "$output1" == "Hello, World!"* ]]; then
+                    echo "Debug test passed."
+                else
+                    echo "Test failure: output is $output1"
+                    exit 1
+                fi
+
+          - name: Compress Product
+            shell: bash
+            run: |
+                echo "${{inputs.version}}" >> VERSION.txt
+                echo "${{inputs.commit}}" >> VERSION.txt
+                mkdir -p temp/include
+                cp -a ./v8/v8/include/* ./temp/include
+                7z a v8_macos_arm64_debug.7z ./v8/v8/out/arm64.debug/obj/libv8_monolith.a ./temp/include VERSION.txt
+        
+          - name: Upload Archive
+            uses: actions/upload-artifact@v4
+            with:
+                name: v8_macos_arm64_debug
+                path: |
+                    *.7z
+                retention-days: 7
+
+    arm64-release:
+        runs-on: macos-latest
+        steps:
+
+          - name: Checkout This Repo
+            uses: actions/checkout@v4
+            with:
+                clean: true
+                fetch-depth: 1
+
+          - name: Set Global Git Configs
+            shell: bash
+            run: |
+                git config --global core.autocrlf false
+                git config --global core.filemode false
+                git config --global core.longpaths true
+                git config --global core.preloadindex true
+                git config --global core.fscache true
+
+          - name: Check Depot Tools
+            uses: newkdev/setup-depot-tools@v1.0.1
+
+          - name: Checkout V8 Source Code
+            shell: bash
+            run: |
+                mkdir v8
+                cd v8
+                fetch v8
+
+          - name: Checkout Target Commit
+            shell: bash
+            run: |
+                cd v8/v8
+                git config branch.autosetupmerge always
+                git config branch.autosetuprebase always
+                git checkout ${{inputs.commit}}
+
+          - name: Sync GClient
+            shell: bash
+            run: |
+                cd v8/v8
+                gclient sync -D
+
+          - name: Set XCode Version
+            uses: maxim-lobanov/setup-xcode@v1.6.0
+            with:
+                xcode-version: latest-stable
+
           - name: Build V8 MacOS arm64 Release
             shell: bash
             run: |
@@ -171,15 +313,7 @@ jobs:
             shell: bash
             run: |
                 set -e
-                chmod +x ./v8/v8/out/arm64.debug/v8_hello_world
                 chmod +x ./v8/v8/out/arm64.release/v8_hello_world
-                output1=$(./v8/v8/out/arm64.debug/v8_hello_world)
-                if [[ "$output1" == "Hello, World!"* ]]; then
-                    echo "Debug test passed."
-                else
-                    echo "Test failure: output is $output1"
-                    exit 1
-                fi
                 output2=$(./v8/v8/out/arm64.release/v8_hello_world)
                 if [[ "$output2" == "Hello, World!"* ]]; then
                     echo "Release test passed."
@@ -195,13 +329,12 @@ jobs:
                 echo "${{inputs.commit}}" >> VERSION.txt
                 mkdir -p temp/include
                 cp -a ./v8/v8/include/* ./temp/include
-                7z a v8_macos_arm64_debug.7z ./v8/v8/out/arm64.debug/obj/libv8_monolith.a ./temp/include VERSION.txt
                 7z a v8_macos_arm64_release.7z ./v8/v8/out/arm64.release/obj/libv8_monolith.a ./temp/include VERSION.txt
         
           - name: Upload Archive
             uses: actions/upload-artifact@v4
             with:
-                name: v8_macos_arm64
+                name: v8_macos_arm64_release
                 path: |
                     *.7z
                 retention-days: 7
