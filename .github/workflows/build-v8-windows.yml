@@ -26,7 +26,7 @@ on:
 
 jobs:
     x64:
-        runs-on: windows-2025
+        runs-on: windows-latest
         steps:
 
           - name: Checkout This Repo
@@ -129,7 +129,7 @@ jobs:
                 retention-days: 7
 
     arm64:
-        runs-on: windows-2025
+        runs-on: windows-latest
         steps:
 
           - name: Checkout This Repo
