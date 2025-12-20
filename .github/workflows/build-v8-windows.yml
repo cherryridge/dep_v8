@@ -70,6 +70,25 @@ jobs:
                 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 cd v8\v8
                 gclient sync -D
+        
+          - name: Patch V8 for MSVC STL
+            shell: pwsh
+            run: |
+                $path = "v8\v8\src\objects\backing-store.cc"
+                if (-not (Test-Path $path)) {
+                    Write-Error "File not found: $path"
+                    exit 1
+                }
+                $content = Get-Content -Path $path -Raw -Encoding UTF8
+                $pattern = 'RetryCustomAllocate\(fn,'
+                $replacement = 'RetryCustomAllocate([&fn]() { return fn(); },'
+                if ($content -match $pattern) {
+                    $newContent = $content -replace $pattern, $replacement
+                    Set-Content -Path $path -Value $newContent -Encoding UTF8
+                    Write-Output " [Success] Patched backing-store.cc to wrap std::function in lambda."
+                } else {
+                    Write-Warning " [Skip] Pattern not found. Code may have changed or is already patched."
+                }
 
           - name: Build Windows x64 Debug
             shell: pwsh
@@ -173,6 +192,26 @@ jobs:
                 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 cd v8\v8
                 gclient sync -D
+
+          - name: Patch V8 for MSVC STL
+            shell: pwsh
+            run: |
+                $path = "v8\v8\src\objects\backing-store.cc"
+                if (-not (Test-Path $path)) {
+                    Write-Error "File not found: $path"
+                    exit 1
+                }
+                $content = Get-Content -Path $path -Raw -Encoding UTF8
+                $pattern = 'RetryCustomAllocate\(fn,'
+                $replacement = 'RetryCustomAllocate([&fn]() { return fn(); },'
+                
+                if ($content -match $pattern) {
+                    $newContent = $content -replace $pattern, $replacement
+                    Set-Content -Path $path -Value $newContent -Encoding UTF8
+                    Write-Output " [Success] Patched backing-store.cc to wrap std::function in lambda."
+                } else {
+                    Write-Warning " [Skip] Pattern not found. Code may have changed or is already patched."
+                }
 
           - name: Install ARM64 Debugger Tools
             uses: ChristopheLav/windows-sdk-install@v1
