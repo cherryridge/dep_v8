@@ -75,7 +75,7 @@ jobs:
             with:
                 xcode-version: latest-stable
 
-          - name: Build V8 MacOS x64 Debug
+          - name: Build MacOS x64 Debug
             shell: bash
             run: |
                 cd v8/v8
@@ -149,7 +149,7 @@ jobs:
             with:
                 xcode-version: latest-stable
 
-          - name: Build V8 MacOS x64 Release
+          - name: Build MacOS x64 Release
             shell: bash
             run: |
                 cd v8/v8
@@ -223,7 +223,7 @@ jobs:
             with:
                 xcode-version: latest-stable
 
-          - name: Build V8 MacOS arm64 Debug
+          - name: Build MacOS arm64 Debug
             shell: bash
             run: |
                 cd v8/v8
@@ -310,7 +310,7 @@ jobs:
             with:
                 xcode-version: latest-stable
 
-          - name: Build V8 MacOS arm64 Release
+          - name: Build MacOS arm64 Release
             shell: bash
             run: |
                 cd v8/v8
