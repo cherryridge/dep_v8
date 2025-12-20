@@ -58,7 +58,7 @@ jobs:
           - name: Checkout Target Commit
             shell: pwsh
             run: |
-                set DEPOT_TOOLS_WIN_TOOLCHAIN=0
+                $env:DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 cd v8\v8
                 git config branch.autosetupmerge always
                 git config branch.autosetuprebase always
@@ -182,7 +182,7 @@ jobs:
           - name: Checkout Target Commit
             shell: pwsh
             run: |
-                set DEPOT_TOOLS_WIN_TOOLCHAIN=0
+                $env:DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 cd v8\v8
                 git config branch.autosetupmerge always
                 git config branch.autosetuprebase always
