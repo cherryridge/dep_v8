@@ -36,7 +36,7 @@ jobs:
                 fetch-depth: 1
 
           - name: Set Global Git Configs
-            shell: cmd
+            shell: pwsh
             run: |
                 git config --global core.autocrlf false
                 git config --global core.filemode false
@@ -56,7 +56,7 @@ jobs:
                 fetch v8
 
           - name: Checkout Target Commit
-            shell: cmd
+            shell: pwsh
             run: |
                 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 cd v8\v8
@@ -160,7 +160,7 @@ jobs:
                 fetch-depth: 1
 
           - name: Set Global Git Configs
-            shell: cmd
+            shell: pwsh
             run: |
                 git config --global core.autocrlf false
                 git config --global core.filemode false
@@ -180,7 +180,7 @@ jobs:
                 fetch v8
 
           - name: Checkout Target Commit
-            shell: cmd
+            shell: pwsh
             run: |
                 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 cd v8\v8
