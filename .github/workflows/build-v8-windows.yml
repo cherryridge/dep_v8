@@ -73,6 +73,22 @@ jobs:
                 cd v8\v8
                 gclient sync -D
 
+          - name: Patch V8 for MSVC STL
+            shell: pwsh
+            run: |
+                $V8SourcePath = "v8\v8\src\objects\backing-store.cc"
+                $SourceContent = Get-Content -Path $V8SourcePath -Raw
+                $Pattern = "(RetryCustomAllocate\s*\(\s*)fn,"
+                $Replacement = '$1[&]() { return fn(); },'
+                $NewContent = [regex]::Replace($SourceContent, $Pattern, $Replacement)
+                if ($NewContent -ne $SourceContent) {
+                    Set-Content -Path $V8SourcePath -Value $NewContent -NoNewline
+                    Write-Output "Success: Applied lambda wrapper patch to backing-store.cc."
+                } else {
+                    Write-Error "Critical: Could not find 'RetryCustomAllocate(... fn,' pattern. The source code may have changed."
+                    exit 1
+                }
+
           - name: Build Windows x64 Debug
             shell: pwsh
             run: |
@@ -177,6 +193,22 @@ jobs:
                 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 cd v8\v8
                 gclient sync -D
+
+          - name: Patch V8 for MSVC STL
+            shell: pwsh
+            run: |
+                $V8SourcePath = "v8\v8\src\objects\backing-store.cc"
+                $SourceContent = Get-Content -Path $V8SourcePath -Raw
+                $Pattern = "(RetryCustomAllocate\s*\(\s*)fn,"
+                $Replacement = '$1[&]() { return fn(); },'
+                $NewContent = [regex]::Replace($SourceContent, $Pattern, $Replacement)
+                if ($NewContent -ne $SourceContent) {
+                    Set-Content -Path $V8SourcePath -Value $NewContent -NoNewline
+                    Write-Output "Success: Applied lambda wrapper patch to backing-store.cc."
+                } else {
+                    Write-Error "Critical: Could not find 'RetryCustomAllocate(... fn,' pattern. The source code may have changed."
+                    exit 1
+                }
 
           - name: Install ARM64 Debugger Tools
             uses: ChristopheLav/windows-sdk-install@v1
