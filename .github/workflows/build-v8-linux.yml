@@ -238,6 +238,7 @@ jobs:
             run: |
                 mkdir sysroots
                 cd sysroots
+                sudo apt update
                 sudo apt install -y debootstrap qemu-user-static binfmt-support rsync
                 sudo debootstrap --variant=minbase --arch=amd64 trixie debian_trixie_amd64-sysroot http://deb.debian.org/debian
                 sudo chroot debian_trixie_amd64-sysroot apt-get update
@@ -245,7 +246,6 @@ jobs:
                 sudo debootstrap --variant=minbase --arch=arm64 trixie debian_trixie_arm64-sysroot http://deb.debian.org/debian
                 sudo cp /usr/bin/qemu-aarch64-static debian_trixie_arm64-sysroot/usr/bin/
                 sudo chroot debian_trixie_arm64-sysroot apt-get update
-                # CHANGED: libstdc++-12-dev -> libstdc++-14-dev
                 sudo chroot debian_trixie_arm64-sysroot apt-get install -y --no-install-recommends libc6-dev libstdc++-14-dev zlib1g-dev
 
           - name: Remove Everything to Free Up Space
