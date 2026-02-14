@@ -5,7 +5,7 @@ permissions:
 
 on:
     schedule:
-        - cron: "0 12 */7 * *"
+        - cron: "0 12 */5 * *"
     workflow_dispatch:
 
 jobs:
@@ -199,3 +199,4 @@ jobs:
                 tag: ${{needs.check.outputs.latest_version}}
 
                 body: Build for version ${{needs.check.outputs.latest_version}} (commit ${{needs.check.outputs.latest_commit}}).
+
