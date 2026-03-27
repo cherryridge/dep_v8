@@ -89,6 +89,22 @@ jobs:
                     exit 1
                 }
 
+          - name: Patch V8 Hashmap for MSVC STL
+            shell: pwsh
+            run: |
+                $hashmapPath = "v8\v8\src\base\hashmap.h"
+                $content = Get-Content -Path $hashmapPath -Raw
+                $pattern = "(struct HashEqualityThenKeyMatcher \{)"
+                $replacement = '$1' + "`n  HashEqualityThenKeyMatcher() : match_(nullptr) {}"
+                $newContent = [regex]::Replace($content, $pattern, $replacement)
+                if ($newContent -ne $content) {
+                    Set-Content -Path $hashmapPath -Value $newContent -NoNewline
+                    Write-Output "Success: Applied HashEqualityThenKeyMatcher default constructor patch."
+                } else {
+                    Write-Error "Critical: Could not find 'HashEqualityThenKeyMatcher' struct. Source may have changed."
+                    exit 1
+                }
+
           - name: Build Windows x64 Debug
             shell: pwsh
             run: |
@@ -207,6 +223,22 @@ jobs:
                     Write-Output "Success: Applied lambda wrapper patch to backing-store.cc."
                 } else {
                     Write-Error "Critical: Could not find 'RetryCustomAllocate(... fn,' pattern. The source code may have changed."
+                    exit 1
+                }
+
+          - name: Patch V8 Hashmap for MSVC STL
+            shell: pwsh
+            run: |
+                $hashmapPath = "v8\v8\src\base\hashmap.h"
+                $content = Get-Content -Path $hashmapPath -Raw
+                $pattern = "(struct HashEqualityThenKeyMatcher \{)"
+                $replacement = '$1' + "`n  HashEqualityThenKeyMatcher() : match_(nullptr) {}"
+                $newContent = [regex]::Replace($content, $pattern, $replacement)
+                if ($newContent -ne $content) {
+                    Set-Content -Path $hashmapPath -Value $newContent -NoNewline
+                    Write-Output "Success: Applied HashEqualityThenKeyMatcher default constructor patch."
+                } else {
+                    Write-Error "Critical: Could not find 'HashEqualityThenKeyMatcher' struct. Source may have changed."
                     exit 1
                 }
 
