@@ -169,6 +169,17 @@ jobs:
                 cd v8/v8
                 gclient sync -D
 
+          - name: Patch V8 Bigint for libstdc++
+            run: |
+                BIGINT_H="v8/v8/src/bigint/bigint.h"
+                if grep -q '#include <memory>' "$BIGINT_H"; then
+                    echo "Already patched, skipping."
+                    exit 0
+                fi
+                # Insert after the last existing #include line in the file
+                sed -i '/#include/a #include <memory>' "$BIGINT_H"
+                echo "Success: Added #include <memory> to bigint.h"
+
           - name: Build Linux x64 Debug
             shell: bash
             run: |
@@ -382,6 +393,17 @@ jobs:
             run: |
                 cd v8/v8
                 gclient sync -D
+
+          - name: Patch V8 Bigint for libstdc++
+            run: |
+                BIGINT_H="v8/v8/src/bigint/bigint.h"
+                if grep -q '#include <memory>' "$BIGINT_H"; then
+                    echo "Already patched, skipping."
+                    exit 0
+                fi
+                # Insert after the last existing #include line in the file
+                sed -i '/#include/a #include <memory>' "$BIGINT_H"
+                echo "Success: Added #include <memory> to bigint.h"
 
           - name: Move Sysroot
             shell: bash
