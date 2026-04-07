@@ -9,6 +9,9 @@ on:
             commit:
                 type: string
                 required: true
+        secrets:
+            googlesource_gitcookies:
+                required: true
         outputs:
             runid:
                 description: Run ID
@@ -46,6 +49,25 @@ jobs:
 
           - name: Checkout Depot Tools
             uses: newkdev/setup-depot-tools@v1.0.1
+
+          - name: Configure Googlesource auth
+            if: ${{secrets.googlesource_gitcookies != ''}}
+            shell: pwsh
+            env:
+                GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
+            run: |
+                $cookiePath = Join-Path $HOME ".gitcookies"
+                Set-Content -Path $cookiePath -Value $env:GOOGLESOURCE_GITCOOKIES -NoNewline
+                git config --global http.cookiefile $cookiePath
+
+          - name: Verify Googlesource auth
+            if: ${{secrets.googlesource_gitcookies != ''}}
+            shell: pwsh
+            run: |
+                git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
+                if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
+                if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           - name: Checkout V8 Source Code
             shell: cmd
@@ -183,6 +205,25 @@ jobs:
 
           - name: Checkout Depot Tools
             uses: newkdev/setup-depot-tools@v1.0.1
+
+          - name: Configure Googlesource auth
+            if: ${{secrets.googlesource_gitcookies != ''}}
+            shell: pwsh
+            env:
+                GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
+            run: |
+                $cookiePath = Join-Path $HOME ".gitcookies"
+                Set-Content -Path $cookiePath -Value $env:GOOGLESOURCE_GITCOOKIES -NoNewline
+                git config --global http.cookiefile $cookiePath
+
+          - name: Verify Googlesource auth
+            if: ${{secrets.googlesource_gitcookies != ''}}
+            shell: pwsh
+            run: |
+                git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
+                if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+                git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
+                if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           - name: Checkout V8 Source Code
             shell: cmd

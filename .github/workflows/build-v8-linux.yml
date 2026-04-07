@@ -9,6 +9,9 @@ on:
             commit:
                 type: string
                 required: true
+        secrets:
+            googlesource_gitcookies:
+                required: true
         outputs:
             runid:
                 description: Run ID
@@ -145,6 +148,25 @@ jobs:
 
           - name: Check Depot Tools
             uses: newkdev/setup-depot-tools@v1.0.1
+
+          - name: Configure Googlesource auth
+            if: ${{secrets.googlesource_gitcookies != ''}}
+            shell: bash
+            env:
+                GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
+            run: |
+                set -euo pipefail
+                umask 077
+                printf '%s' "$GOOGLESOURCE_GITCOOKIES" > "$HOME/.gitcookies"
+                git config --global http.cookiefile "$HOME/.gitcookies"
+          
+          - name: Verify Googlesource auth
+            if: ${{secrets.googlesource_gitcookies != ''}}
+            shell: bash
+            run: |
+                set -euo pipefail
+                git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
+                git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
 
           - name: Checkout V8 Source Code
             shell: bash
@@ -370,6 +392,25 @@ jobs:
 
           - name: Check Depot Tools
             uses: newkdev/setup-depot-tools@v1.0.1
+
+          - name: Configure Googlesource auth
+            if: ${{secrets.googlesource_gitcookies != ''}}
+            shell: bash
+            env:
+                GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
+            run: |
+                set -euo pipefail
+                umask 077
+                printf '%s' "$GOOGLESOURCE_GITCOOKIES" > "$HOME/.gitcookies"
+                git config --global http.cookiefile "$HOME/.gitcookies"
+          
+          - name: Verify Googlesource auth
+            if: ${{secrets.googlesource_gitcookies != ''}}
+            shell: bash
+            run: |
+                set -euo pipefail
+                git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
+                git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
 
           - name: Checkout V8 Source Code
             shell: bash
