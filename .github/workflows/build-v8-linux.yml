@@ -151,7 +151,7 @@ jobs:
             run: |
                 mkdir v8
                 cd v8
-                fetch v8
+                fetch --nohooks --no-history v8
 
           - name: Checkout Target Commit
             shell: bash
@@ -167,7 +167,7 @@ jobs:
             shell: bash
             run: |
                 cd v8/v8
-                gclient sync -D
+                gclient sync -D --no-history --shallow
 
           - name: Patch V8 Bigint for libstdc++
             run: |
@@ -376,7 +376,7 @@ jobs:
             run: |
                 mkdir v8
                 cd v8
-                fetch v8
+                fetch --nohooks --no-history v8
 
           - name: Checkout Target Commit
             shell: bash
@@ -392,7 +392,7 @@ jobs:
             shell: bash
             run: |
                 cd v8/v8
-                gclient sync -D
+                gclient sync -D --no-history --shallow
 
           - name: Patch V8 Bigint for libstdc++
             run: |

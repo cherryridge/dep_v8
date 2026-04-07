@@ -53,7 +53,7 @@ jobs:
                 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 mkdir v8
                 cd v8
-                fetch v8
+                fetch --nohooks --no-history v8
 
           - name: Checkout Target Commit
             shell: pwsh
@@ -71,7 +71,7 @@ jobs:
             run: |
                 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 cd v8\v8
-                gclient sync -D
+                gclient sync -D --no-history --shallow
 
           - name: Patch V8 for MSVC STL
             shell: pwsh
@@ -190,7 +190,7 @@ jobs:
                 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 mkdir v8
                 cd v8
-                fetch v8
+                fetch --nohooks --no-history v8
 
           - name: Checkout Target Commit
             shell: pwsh
@@ -208,7 +208,7 @@ jobs:
             run: |
                 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
                 cd v8\v8
-                gclient sync -D
+                gclient sync -D --no-history --shallow
 
           - name: Patch V8 for MSVC STL
             shell: pwsh

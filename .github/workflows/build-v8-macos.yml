@@ -52,7 +52,7 @@ jobs:
             run: |
                 mkdir v8
                 cd v8
-                fetch v8
+                fetch --nohooks --no-history v8
 
           - name: Checkout Target Commit
             shell: bash
@@ -68,7 +68,7 @@ jobs:
             shell: bash
             run: |
                 cd v8/v8
-                gclient sync -D
+                gclient sync -D --no-history --shallow
 
           - name: Set XCode Version
             uses: maxim-lobanov/setup-xcode@v1.6.0
@@ -126,7 +126,7 @@ jobs:
             run: |
                 mkdir v8
                 cd v8
-                fetch v8
+                fetch --nohooks --no-history v8
 
           - name: Checkout Target Commit
             shell: bash
@@ -142,7 +142,7 @@ jobs:
             shell: bash
             run: |
                 cd v8/v8
-                gclient sync -D
+                gclient sync -D --no-history --shallow
 
           - name: Set XCode Version
             uses: maxim-lobanov/setup-xcode@v1.6.0
@@ -200,7 +200,7 @@ jobs:
             run: |
                 mkdir v8
                 cd v8
-                fetch v8
+                fetch --nohooks --no-history v8
 
           - name: Checkout Target Commit
             shell: bash
@@ -216,7 +216,7 @@ jobs:
             shell: bash
             run: |
                 cd v8/v8
-                gclient sync -D
+                gclient sync -D --no-history --shallow
 
           - name: Set XCode Version
             uses: maxim-lobanov/setup-xcode@v1.6.0
@@ -287,7 +287,7 @@ jobs:
             run: |
                 mkdir v8
                 cd v8
-                fetch v8
+                fetch --nohooks --no-history v8
 
           - name: Checkout Target Commit
             shell: bash
@@ -303,7 +303,7 @@ jobs:
             shell: bash
             run: |
                 cd v8/v8
-                gclient sync -D
+                gclient sync -D --no-history --shallow
 
           - name: Set XCode Version
             uses: maxim-lobanov/setup-xcode@v1.6.0
