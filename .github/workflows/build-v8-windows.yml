@@ -51,19 +51,26 @@ jobs:
             uses: newkdev/setup-depot-tools@v1.0.1
 
           - name: Configure Googlesource auth
-            if: ${{secrets.googlesource_gitcookies != ''}}
             shell: pwsh
             env:
                 GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
             run: |
+                if ([string]::IsNullOrWhiteSpace($env:GOOGLESOURCE_GITCOOKIES)) {
+                    Write-Host "No Googlesource auth configured."
+                    exit 0
+                }
                 $cookiePath = Join-Path $HOME ".gitcookies"
                 Set-Content -Path $cookiePath -Value $env:GOOGLESOURCE_GITCOOKIES -NoNewline
                 git config --global http.cookiefile $cookiePath
 
           - name: Verify Googlesource auth
-            if: ${{secrets.googlesource_gitcookies != ''}}
             shell: pwsh
             run: |
+                $cookiePath = Join-Path $HOME ".gitcookies"
+                if (-not (Test-Path $cookiePath)) {
+                    Write-Host "Skipping auth verification."
+                    exit 0
+                }
                 git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
                 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
                 git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
@@ -207,19 +214,26 @@ jobs:
             uses: newkdev/setup-depot-tools@v1.0.1
 
           - name: Configure Googlesource auth
-            if: ${{secrets.googlesource_gitcookies != ''}}
             shell: pwsh
             env:
                 GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
             run: |
+                if ([string]::IsNullOrWhiteSpace($env:GOOGLESOURCE_GITCOOKIES)) {
+                    Write-Host "No Googlesource auth configured."
+                    exit 0
+                }
                 $cookiePath = Join-Path $HOME ".gitcookies"
                 Set-Content -Path $cookiePath -Value $env:GOOGLESOURCE_GITCOOKIES -NoNewline
                 git config --global http.cookiefile $cookiePath
 
           - name: Verify Googlesource auth
-            if: ${{secrets.googlesource_gitcookies != ''}}
             shell: pwsh
             run: |
+                $cookiePath = Join-Path $HOME ".gitcookies"
+                if (-not (Test-Path $cookiePath)) {
+                    Write-Host "Skipping auth verification."
+                    exit 0
+                }
                 git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
                 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
                 git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
