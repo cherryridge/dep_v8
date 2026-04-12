@@ -297,6 +297,34 @@ jobs:
                     exit 1
                 }
 
+          - name: Patch libc++ debug mode for modern LLVM
+            shell: pwsh
+            run: |
+                $cxxBuild = "v8\v8\build\config\c++\BUILD.gn"
+                $compilerBuild = "v8\v8\build\config\compiler\BUILD.gn"
+                $cxxContent = Get-Content -Path $cxxBuild -Raw
+                $cxxContent = $cxxContent -replace 'if \(enable_iterator_debugging\) \{\s*defines \+= \[ "_LIBCPP_ENABLE_DEBUG_MODE" \]\s*\}', ''
+                Set-Content -Path $cxxBuild -Value $cxxContent -NoNewline
+                $compilerContent = Get-Content -Path $compilerBuild -Raw
+                $oldBlock = @'
+                if (use_safe_libcxx) {
+                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]
+                } else {
+                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]
+                }
+                '@
+                $newBlock = @'
+                if (enable_iterator_debugging) {
+                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG" ]
+                } else if (use_safe_libcxx) {
+                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]
+                } else {
+                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]
+                }
+                '@
+                $compilerContent = $compilerContent.Replace($oldBlock, $newBlock)
+                Set-Content -Path $compilerBuild -Value $compilerContent -NoNewline
+
           - name: Install ARM64 Debugger Tools
             uses: ChristopheLav/windows-sdk-install@v1
             with:
