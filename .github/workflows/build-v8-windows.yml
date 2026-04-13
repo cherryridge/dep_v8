@@ -138,23 +138,26 @@ jobs:
             shell: pwsh
             run: |
                 $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
-                $fileContent = Get-Content -Path $buildFilePath -Raw
-                $oldBlock = @'
-                if (use_safe_libcxx) {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]
-                } else {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]
-                }
-                '@
-                $newBlock = @'
-                if (enable_iterator_debugging) {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG" ]
-                } else if (use_safe_libcxx) {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]
-                } else {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]
-                }
-                '@
+                $fileContentRaw = Get-Content -Path $buildFilePath -Raw
+                $fileContent = $fileContentRaw -replace "`r`n", "`n"
+                $oldLines = @(
+                  'if (use_safe_libcxx) {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]'
+                  '} else {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]'
+                  '}'
+                )
+                $oldBlock = $oldLines -join "`n"
+                $newLines = @(
+                  'if (enable_iterator_debugging) {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG" ]'
+                  '} else if (use_safe_libcxx) {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]'
+                  '} else {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]'
+                  '}'
+                )
+                $newBlock = $newLines -join "`n"
                 if ($fileContent.Contains($newBlock)) {
                     Write-Output "Success: libc++ debug mode patch is already present in compiler/BUILD.gn."
                     exit 0
@@ -169,7 +172,8 @@ jobs:
                     exit 1
                 }
                 Set-Content -Path $buildFilePath -Value $newContent -NoNewline
-                $verifyContent = Get-Content -Path $buildFilePath -Raw
+                $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
+                $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
                 if ($verifyContent.Contains($newBlock) -and -not $verifyContent.Contains($oldBlock)) {
                     Write-Output "Success: Applied libc++ debug mode patch to compiler/BUILD.gn."
                 } else {
@@ -181,38 +185,38 @@ jobs:
             shell: pwsh
             run: |
                 $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
-                $fileContent = Get-Content -Path $buildFilePath -Raw
-                $anchorBlock = @'
-                if (is_win && is_clang) {
-                '@
-                $insertedBlock = @'
-                if (is_win && is_clang) {
-                    if (is_debug) {
-                        cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]
-                    }
-                '@
-                $expectedFlagLine = '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
-                if ($fileContent.Contains($expectedFlagLine)) {
-                    if ($fileContent.Contains('if (is_win && is_clang) {') -and $fileContent.Contains('if (is_debug) {')) {
-                        Write-Output "Success: Clang constexpr step budget patch is already present in compiler/BUILD.gn."
-                        exit 0
-                    } else {
-                        Write-Error "Critical: Found the constexpr flag line, but the surrounding structure does not match the expected patch."
-                        exit 1
-                    }
+                $fileContentRaw = Get-Content -Path $buildFilePath -Raw
+                $fileContent = $fileContentRaw -replace "`r`n", "`n"
+                $expectedLine = '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
+                $anchorLine = 'if (is_win && is_clang) {'
+                if ($fileContent.Contains($expectedLine)) {
+                    Write-Output "Success: Clang constexpr step budget patch is already present in compiler/BUILD.gn."
+                    exit 0
                 }
-                if (-not $fileContent.Contains($anchorBlock)) {
+                $anchorIndex = $fileContent.IndexOf($anchorLine)
+                if ($anchorIndex -lt 0) {
                     Write-Error "Critical: Could not find the expected 'if (is_win && is_clang)' block in compiler/BUILD.gn. The source code may have changed."
                     exit 1
                 }
-                $newContent = $fileContent.Replace($anchorBlock, $insertedBlock)
+                $insertLines = @(
+                  'if (is_win && is_clang) {'
+                  '  if (is_debug) {'
+                  '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
+                  '  }'
+                )
+                $insertBlock = $insertLines -join "`n"
+                $newContent =
+                  $fileContent.Substring(0, $anchorIndex) +
+                  $insertBlock +
+                  $fileContent.Substring($anchorIndex + $anchorLine.Length)
                 if ($newContent -eq $fileContent) {
                     Write-Error "Critical: Failed to apply the Clang constexpr step budget patch to compiler/BUILD.gn."
                     exit 1
                 }
                 Set-Content -Path $buildFilePath -Value $newContent -NoNewline
-                $verifyContent = Get-Content -Path $buildFilePath -Raw
-                if ($verifyContent.Contains($expectedFlagLine)) {
+                $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
+                $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
+                if ($verifyContent.Contains($expectedLine)) {
                     Write-Output "Success: Applied Clang constexpr step budget patch to compiler/BUILD.gn."
                 } else {
                     Write-Error "Critical: Verification failed after applying the Clang constexpr step budget patch."
@@ -392,23 +396,26 @@ jobs:
             shell: pwsh
             run: |
                 $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
-                $fileContent = Get-Content -Path $buildFilePath -Raw
-                $oldBlock = @'
-                if (use_safe_libcxx) {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]
-                } else {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]
-                }
-                '@
-                $newBlock = @'
-                if (enable_iterator_debugging) {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG" ]
-                } else if (use_safe_libcxx) {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]
-                } else {
-                    defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]
-                }
-                '@
+                $fileContentRaw = Get-Content -Path $buildFilePath -Raw
+                $fileContent = $fileContentRaw -replace "`r`n", "`n"
+                $oldLines = @(
+                  'if (use_safe_libcxx) {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]'
+                  '} else {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]'
+                  '}'
+                )
+                $oldBlock = $oldLines -join "`n"
+                $newLines = @(
+                  'if (enable_iterator_debugging) {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG" ]'
+                  '} else if (use_safe_libcxx) {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]'
+                  '} else {'
+                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]'
+                  '}'
+                )
+                $newBlock = $newLines -join "`n"
                 if ($fileContent.Contains($newBlock)) {
                     Write-Output "Success: libc++ debug mode patch is already present in compiler/BUILD.gn."
                     exit 0
@@ -423,7 +430,8 @@ jobs:
                     exit 1
                 }
                 Set-Content -Path $buildFilePath -Value $newContent -NoNewline
-                $verifyContent = Get-Content -Path $buildFilePath -Raw
+                $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
+                $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
                 if ($verifyContent.Contains($newBlock) -and -not $verifyContent.Contains($oldBlock)) {
                     Write-Output "Success: Applied libc++ debug mode patch to compiler/BUILD.gn."
                 } else {
@@ -435,38 +443,38 @@ jobs:
             shell: pwsh
             run: |
                 $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
-                $fileContent = Get-Content -Path $buildFilePath -Raw
-                $anchorBlock = @'
-                if (is_win && is_clang) {
-                '@
-                $insertedBlock = @'
-                if (is_win && is_clang) {
-                    if (is_debug) {
-                        cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]
-                    }
-                '@
-                $expectedFlagLine = '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
-                if ($fileContent.Contains($expectedFlagLine)) {
-                    if ($fileContent.Contains('if (is_win && is_clang) {') -and $fileContent.Contains('if (is_debug) {')) {
-                        Write-Output "Success: Clang constexpr step budget patch is already present in compiler/BUILD.gn."
-                        exit 0
-                    } else {
-                        Write-Error "Critical: Found the constexpr flag line, but the surrounding structure does not match the expected patch."
-                        exit 1
-                    }
+                $fileContentRaw = Get-Content -Path $buildFilePath -Raw
+                $fileContent = $fileContentRaw -replace "`r`n", "`n"
+                $expectedLine = '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
+                $anchorLine = 'if (is_win && is_clang) {'
+                if ($fileContent.Contains($expectedLine)) {
+                    Write-Output "Success: Clang constexpr step budget patch is already present in compiler/BUILD.gn."
+                    exit 0
                 }
-                if (-not $fileContent.Contains($anchorBlock)) {
+                $anchorIndex = $fileContent.IndexOf($anchorLine)
+                if ($anchorIndex -lt 0) {
                     Write-Error "Critical: Could not find the expected 'if (is_win && is_clang)' block in compiler/BUILD.gn. The source code may have changed."
                     exit 1
                 }
-                $newContent = $fileContent.Replace($anchorBlock, $insertedBlock)
+                $insertLines = @(
+                  'if (is_win && is_clang) {'
+                  '  if (is_debug) {'
+                  '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
+                  '  }'
+                )
+                $insertBlock = $insertLines -join "`n"
+                $newContent =
+                  $fileContent.Substring(0, $anchorIndex) +
+                  $insertBlock +
+                  $fileContent.Substring($anchorIndex + $anchorLine.Length)
                 if ($newContent -eq $fileContent) {
                     Write-Error "Critical: Failed to apply the Clang constexpr step budget patch to compiler/BUILD.gn."
                     exit 1
                 }
                 Set-Content -Path $buildFilePath -Value $newContent -NoNewline
-                $verifyContent = Get-Content -Path $buildFilePath -Raw
-                if ($verifyContent.Contains($expectedFlagLine)) {
+                $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
+                $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
+                if ($verifyContent.Contains($expectedLine)) {
                     Write-Output "Success: Applied Clang constexpr step budget patch to compiler/BUILD.gn."
                 } else {
                     Write-Error "Critical: Verification failed after applying the Clang constexpr step budget patch."
