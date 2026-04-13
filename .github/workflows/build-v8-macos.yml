@@ -38,6 +38,8 @@ jobs:
         fetch-depth: 1
     - name: Prepare
       uses: ./.github/actions/prepare
+      with:
+        googlesource_gitcookies: ${{secrets.googlesource_gitcookies}}
 
     - name: Checkout V8 Source Code
       shell: bash
@@ -101,6 +103,8 @@ jobs:
         fetch-depth: 1
     - name: Prepare
       uses: ./.github/actions/prepare
+      with:
+        googlesource_gitcookies: ${{secrets.googlesource_gitcookies}}
 
     - name: Checkout V8 Source Code
       shell: bash
@@ -164,6 +168,8 @@ jobs:
         fetch-depth: 1
     - name: Prepare
       uses: ./.github/actions/prepare
+      with:
+        googlesource_gitcookies: ${{secrets.googlesource_gitcookies}}
 
     - name: Checkout V8 Source Code
       shell: bash
@@ -240,6 +246,8 @@ jobs:
         fetch-depth: 1
     - name: Prepare
       uses: ./.github/actions/prepare
+      with:
+        googlesource_gitcookies: ${{secrets.googlesource_gitcookies}}
 
     - name: Checkout V8 Source Code
       shell: bash

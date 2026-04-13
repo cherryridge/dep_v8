@@ -1,4 +1,9 @@
 ﻿name: Prepare for a building job
+description: Prepare for a building job
+inputs:
+  googlesource_gitcookies:
+    description: googlesource_gitcookies
+    required: true
 
 runs:
   using: composite
@@ -19,7 +24,7 @@ runs:
       if: ${{ runner.os != 'Windows' }}
       shell: bash
       env:
-        GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
+        GOOGLESOURCE_GITCOOKIES: ${{inputs.googlesource_gitcookies}}
       run: |
         set -euo pipefail
         if [ -z "${GOOGLESOURCE_GITCOOKIES:-}" ]; then
@@ -46,7 +51,7 @@ runs:
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
       env:
-        GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
+        GOOGLESOURCE_GITCOOKIES: ${{inputs.googlesource_gitcookies}}
       run: |
         if ([string]::IsNullOrWhiteSpace($env:GOOGLESOURCE_GITCOOKIES)) {
           Write-Host "No Googlesource auth configured."
