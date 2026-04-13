@@ -1,0 +1,123 @@
+﻿name: V8 Windows Patches
+
+runs:
+  using: composite
+  steps:
+    - name: Patch V8 for MSVC STL
+      shell: pwsh
+      run: |
+        $V8SourcePath = "v8\v8\src\objects\backing-store.cc"
+        $SourceContent = Get-Content -Path $V8SourcePath -Raw
+        $Pattern = "(RetryCustomAllocate\s*\(\s*)fn,"
+        $Replacement = '$1[&]() { return fn(); },'
+        $NewContent = [regex]::Replace($SourceContent, $Pattern, $Replacement)
+
+        if ($NewContent -ne $SourceContent) {
+          Set-Content -Path $V8SourcePath -Value $NewContent -NoNewline
+          Write-Output "Success: Applied lambda wrapper patch to backing-store.cc."
+        } else {
+          Write-Error "Critical: Could not find 'RetryCustomAllocate(... fn,' pattern. The source code may have changed."
+          exit 1
+        }
+
+    - name: Patch V8 Hashmap for MSVC STL
+      shell: pwsh
+      run: |
+        $hashmapPath = "v8\v8\src\base\hashmap.h"
+        $content = Get-Content -Path $hashmapPath -Raw
+        $pattern = "(struct HashEqualityThenKeyMatcher \{)"
+        $replacement = '$1' + "`n  HashEqualityThenKeyMatcher() : match_(nullptr) {}"
+        $newContent = [regex]::Replace($content, $pattern, $replacement)
+        if ($newContent -ne $content) {
+          Set-Content -Path $hashmapPath -Value $newContent -NoNewline
+          Write-Output "Success: Applied HashEqualityThenKeyMatcher default constructor patch."
+        } else {
+          Write-Error "Critical: Could not find 'HashEqualityThenKeyMatcher' struct. Source may have changed."
+          exit 1
+        }
+
+    - name: Patch libc++ debug mode for modern LLVM
+      shell: pwsh
+      run: |
+        $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
+        $fileContentRaw = Get-Content -Path $buildFilePath -Raw
+        $fileContent = $fileContentRaw -replace "`r`n", "`n"
+        $replacementLines = @(
+          'if (enable_iterator_debugging) {'
+          '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG" ]'
+          '} else if (use_safe_libcxx) {'
+          '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]'
+          '} else {'
+          '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]'
+          '}'
+        )
+        $replacementBlock = $replacementLines -join "`n"
+        if ($fileContent.Contains($replacementBlock)) {
+          Write-Output "Success: libc++ debug mode patch is already present in compiler/BUILD.gn."
+          exit 0
+        }
+        $pattern = 'if \(use_safe_libcxx\)\s*\{\s*defines \+= \[ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" \]\s*\}\s*else\s*\{\s*defines \+= \[ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" \]\s*\}'
+        $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        if (-not $regex.IsMatch($fileContent)) {
+          $context = Select-String -Path $buildFilePath -Pattern 'use_safe_libcxx|_LIBCPP_HARDENING_MODE' -Context 3,3 | Out-String
+          Write-Output "Diagnostic context from compiler/BUILD.gn:"
+          Write-Output $context
+          Write-Error "Critical: Could not find a replaceable libc++ hardening block in compiler/BUILD.gn. The source code may have changed."
+          exit 1
+        }
+        $newContent = $regex.Replace($fileContent, $replacementBlock, 1)
+        if ($newContent -eq $fileContent) {
+          Write-Error "Critical: Failed to apply the libc++ debug mode patch to compiler/BUILD.gn."
+          exit 1
+        }
+        Set-Content -Path $buildFilePath -Value $newContent -NoNewline
+        $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
+        $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
+        if ($verifyContent.Contains($replacementBlock)) {
+          Write-Output "Success: Applied libc++ debug mode patch to compiler/BUILD.gn."
+        } else {
+          Write-Error "Critical: Verification failed after applying the libc++ debug mode patch."
+          exit 1
+        }
+
+    - name: Patch Clang constexpr step budget for debug builds
+      shell: pwsh
+      run: |
+        $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
+        $fileContentRaw = Get-Content -Path $buildFilePath -Raw
+        $fileContent = $fileContentRaw -replace "`r`n", "`n"
+        $expectedLine = '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
+        $anchorLine = 'if (is_win && is_clang) {'
+        if ($fileContent.Contains($expectedLine)) {
+          Write-Output "Success: Clang constexpr step budget patch is already present in compiler/BUILD.gn."
+          exit 0
+        }
+        $anchorIndex = $fileContent.IndexOf($anchorLine)
+        if ($anchorIndex -lt 0) {
+          Write-Error "Critical: Could not find the expected 'if (is_win && is_clang)' block in compiler/BUILD.gn. The source code may have changed."
+          exit 1
+        }
+        $insertLines = @(
+          'if (is_win && is_clang) {'
+          '  if (is_debug) {'
+          '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
+          '  }'
+        )
+        $insertBlock = $insertLines -join "`n"
+        $newContent =
+          $fileContent.Substring(0, $anchorIndex) +
+          $insertBlock +
+          $fileContent.Substring($anchorIndex + $anchorLine.Length)
+        if ($newContent -eq $fileContent) {
+          Write-Error "Critical: Failed to apply the Clang constexpr step budget patch to compiler/BUILD.gn."
+          exit 1
+        }
+        Set-Content -Path $buildFilePath -Value $newContent -NoNewline
+        $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
+        $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
+        if ($verifyContent.Contains($expectedLine)) {
+          Write-Output "Success: Applied Clang constexpr step budget patch to compiler/BUILD.gn."
+        } else {
+          Write-Error "Critical: Verification failed after applying the Clang constexpr step budget patch."
+          exit 1
+        }
