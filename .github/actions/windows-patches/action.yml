@@ -90,16 +90,16 @@ runs:
         $replacementLines = @(
           '# Iterator debugging now uses _LIBCPP_HARDENING_MODE in'
           '# //build/config/compiler/BUILD.gn.'
-          '# Do not define _LIBCPP_ENABLE_DEBUG_MODE here because modern libc++'
-          '# removed it.'
+          '# Do not define the legacy libc++ debug macro here because modern'
+          '# libc++ removed it.'
         )
         $replacementBlock = $replacementLines -join "`n"
-        if (($fileContent.Contains($replacementBlock)) -and (-not $fileContent.Contains('_LIBCPP_ENABLE_DEBUG_MODE'))) {
+        $pattern = 'if \(enable_iterator_debugging\)\s*\{\s*defines \+= \[ "_LIBCPP_ENABLE_DEBUG_MODE" \]\s*\}'
+        $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        if ($fileContent.Contains($replacementBlock) -and (-not $regex.IsMatch($fileContent))) {
           Write-Output "Success: removed libc++ debug macro patch is already present in c++/BUILD.gn."
           exit 0
         }
-        $pattern = 'if \(enable_iterator_debugging\)\s*\{\s*defines \+= \[ "_LIBCPP_ENABLE_DEBUG_MODE" \]\s*\}'
-        $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
         if (-not $regex.IsMatch($fileContent)) {
           $context = Select-String -Path $buildFilePath -Pattern '_LIBCPP_ENABLE_DEBUG_MODE|enable_iterator_debugging' -Context 3,3 | Out-String
           Write-Output "Diagnostic context from c++/BUILD.gn:"
@@ -115,8 +115,8 @@ runs:
         Set-Content -Path $buildFilePath -Value $newContent -NoNewline
         $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
         $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
-        if (($verifyContent.Contains($replacementBlock)) -and (-not $verifyContent.Contains('_LIBCPP_ENABLE_DEBUG_MODE'))) {
-          Write-Output "Success: Removed deprecated _LIBCPP_ENABLE_DEBUG_MODE from c++/BUILD.gn."
+        if ($verifyContent.Contains($replacementBlock) -and (-not $regex.IsMatch($verifyContent))) {
+          Write-Output "Success: Removed deprecated _LIBCPP_ENABLE_DEBUG_MODE define block from c++/BUILD.gn."
         } else {
           Write-Error "Critical: Verification failed after patching c++/BUILD.gn."
           exit 1
