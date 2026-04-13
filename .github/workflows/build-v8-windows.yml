@@ -140,15 +140,7 @@ jobs:
                 $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
                 $fileContentRaw = Get-Content -Path $buildFilePath -Raw
                 $fileContent = $fileContentRaw -replace "`r`n", "`n"
-                $oldLines = @(
-                  'if (use_safe_libcxx) {'
-                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]'
-                  '} else {'
-                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]'
-                  '}'
-                )
-                $oldBlock = $oldLines -join "`n"
-                $newLines = @(
+                $replacementLines = @(
                   'if (enable_iterator_debugging) {'
                   '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG" ]'
                   '} else if (use_safe_libcxx) {'
@@ -157,16 +149,21 @@ jobs:
                   '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]'
                   '}'
                 )
-                $newBlock = $newLines -join "`n"
-                if ($fileContent.Contains($newBlock)) {
+                $replacementBlock = $replacementLines -join "`n"
+                if ($fileContent.Contains($replacementBlock)) {
                     Write-Output "Success: libc++ debug mode patch is already present in compiler/BUILD.gn."
                     exit 0
                 }
-                if (-not $fileContent.Contains($oldBlock)) {
-                    Write-Error "Critical: Could not find the expected libc++ hardening block in compiler/BUILD.gn. The source code may have changed."
+                $pattern = 'if \(use_safe_libcxx\)\s*\{\s*defines \+= \[ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" \]\s*\}\s*else\s*\{\s*defines \+= \[ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" \]\s*\}'
+                $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+                if (-not $regex.IsMatch($fileContent)) {
+                    $context = Select-String -Path $buildFilePath -Pattern 'use_safe_libcxx|_LIBCPP_HARDENING_MODE' -Context 3,3 | Out-String
+                    Write-Output "Diagnostic context from compiler/BUILD.gn:"
+                    Write-Output $context
+                    Write-Error "Critical: Could not find a replaceable libc++ hardening block in compiler/BUILD.gn. The source code may have changed."
                     exit 1
                 }
-                $newContent = $fileContent.Replace($oldBlock, $newBlock)
+                $newContent = $regex.Replace($fileContent, $replacementBlock, 1)
                 if ($newContent -eq $fileContent) {
                     Write-Error "Critical: Failed to apply the libc++ debug mode patch to compiler/BUILD.gn."
                     exit 1
@@ -174,7 +171,7 @@ jobs:
                 Set-Content -Path $buildFilePath -Value $newContent -NoNewline
                 $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
                 $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
-                if ($verifyContent.Contains($newBlock) -and -not $verifyContent.Contains($oldBlock)) {
+                if ($verifyContent.Contains($replacementBlock)) {
                     Write-Output "Success: Applied libc++ debug mode patch to compiler/BUILD.gn."
                 } else {
                     Write-Error "Critical: Verification failed after applying the libc++ debug mode patch."
@@ -398,15 +395,7 @@ jobs:
                 $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
                 $fileContentRaw = Get-Content -Path $buildFilePath -Raw
                 $fileContent = $fileContentRaw -replace "`r`n", "`n"
-                $oldLines = @(
-                  'if (use_safe_libcxx) {'
-                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]'
-                  '} else {'
-                  '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]'
-                  '}'
-                )
-                $oldBlock = $oldLines -join "`n"
-                $newLines = @(
+                $replacementLines = @(
                   'if (enable_iterator_debugging) {'
                   '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG" ]'
                   '} else if (use_safe_libcxx) {'
@@ -415,16 +404,21 @@ jobs:
                   '  defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]'
                   '}'
                 )
-                $newBlock = $newLines -join "`n"
-                if ($fileContent.Contains($newBlock)) {
+                $replacementBlock = $replacementLines -join "`n"
+                if ($fileContent.Contains($replacementBlock)) {
                     Write-Output "Success: libc++ debug mode patch is already present in compiler/BUILD.gn."
                     exit 0
                 }
-                if (-not $fileContent.Contains($oldBlock)) {
-                    Write-Error "Critical: Could not find the expected libc++ hardening block in compiler/BUILD.gn. The source code may have changed."
+                $pattern = 'if \(use_safe_libcxx\)\s*\{\s*defines \+= \[ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" \]\s*\}\s*else\s*\{\s*defines \+= \[ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" \]\s*\}'
+                $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+                if (-not $regex.IsMatch($fileContent)) {
+                    $context = Select-String -Path $buildFilePath -Pattern 'use_safe_libcxx|_LIBCPP_HARDENING_MODE' -Context 3,3 | Out-String
+                    Write-Output "Diagnostic context from compiler/BUILD.gn:"
+                    Write-Output $context
+                    Write-Error "Critical: Could not find a replaceable libc++ hardening block in compiler/BUILD.gn. The source code may have changed."
                     exit 1
                 }
-                $newContent = $fileContent.Replace($oldBlock, $newBlock)
+                $newContent = $regex.Replace($fileContent, $replacementBlock, 1)
                 if ($newContent -eq $fileContent) {
                     Write-Error "Critical: Failed to apply the libc++ debug mode patch to compiler/BUILD.gn."
                     exit 1
@@ -432,7 +426,7 @@ jobs:
                 Set-Content -Path $buildFilePath -Value $newContent -NoNewline
                 $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
                 $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
-                if ($verifyContent.Contains($newBlock) -and -not $verifyContent.Contains($oldBlock)) {
+                if ($verifyContent.Contains($replacementBlock)) {
                     Write-Output "Success: Applied libc++ debug mode patch to compiler/BUILD.gn."
                 } else {
                     Write-Error "Critical: Verification failed after applying the libc++ debug mode patch."
