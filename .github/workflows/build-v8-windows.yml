@@ -137,12 +137,8 @@ jobs:
           - name: Patch libc++ debug mode for modern LLVM
             shell: pwsh
             run: |
-                $cxxBuild = "v8\v8\build\config\c++\BUILD.gn"
-                $compilerBuild = "v8\v8\build\config\compiler\BUILD.gn"
-                $cxxContent = Get-Content -Path $cxxBuild -Raw
-                $cxxContent = $cxxContent -replace 'if \(enable_iterator_debugging\) \{\s*defines \+= \[ "_LIBCPP_ENABLE_DEBUG_MODE" \]\s*\}', ''
-                Set-Content -Path $cxxBuild -Value $cxxContent -NoNewline
-                $compilerContent = Get-Content -Path $compilerBuild -Raw
+                $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
+                $fileContent = Get-Content -Path $buildFilePath -Raw
                 $oldBlock = @'
                 if (use_safe_libcxx) {
                     defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]
@@ -159,8 +155,69 @@ jobs:
                     defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]
                 }
                 '@
-                $compilerContent = $compilerContent.Replace($oldBlock, $newBlock)
-                Set-Content -Path $compilerBuild -Value $compilerContent -NoNewline
+                if ($fileContent.Contains($newBlock)) {
+                    Write-Output "Success: libc++ debug mode patch is already present in compiler/BUILD.gn."
+                    exit 0
+                }
+                if (-not $fileContent.Contains($oldBlock)) {
+                    Write-Error "Critical: Could not find the expected libc++ hardening block in compiler/BUILD.gn. The source code may have changed."
+                    exit 1
+                }
+                $newContent = $fileContent.Replace($oldBlock, $newBlock)
+                if ($newContent -eq $fileContent) {
+                    Write-Error "Critical: Failed to apply the libc++ debug mode patch to compiler/BUILD.gn."
+                    exit 1
+                }
+                Set-Content -Path $buildFilePath -Value $newContent -NoNewline
+                $verifyContent = Get-Content -Path $buildFilePath -Raw
+                if ($verifyContent.Contains($newBlock) -and -not $verifyContent.Contains($oldBlock)) {
+                    Write-Output "Success: Applied libc++ debug mode patch to compiler/BUILD.gn."
+                } else {
+                    Write-Error "Critical: Verification failed after applying the libc++ debug mode patch."
+                    exit 1
+                }
+
+          - name: Patch Clang constexpr step budget for debug builds
+            shell: pwsh
+            run: |
+                $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
+                $fileContent = Get-Content -Path $buildFilePath -Raw
+                $anchorBlock = @'
+                if (is_win && is_clang) {
+                '@
+                $insertedBlock = @'
+                if (is_win && is_clang) {
+                    if (is_debug) {
+                        cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]
+                    }
+                '@
+                $expectedFlagLine = '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
+                if ($fileContent.Contains($expectedFlagLine)) {
+                    if ($fileContent.Contains('if (is_win && is_clang) {') -and $fileContent.Contains('if (is_debug) {')) {
+                        Write-Output "Success: Clang constexpr step budget patch is already present in compiler/BUILD.gn."
+                        exit 0
+                    } else {
+                        Write-Error "Critical: Found the constexpr flag line, but the surrounding structure does not match the expected patch."
+                        exit 1
+                    }
+                }
+                if (-not $fileContent.Contains($anchorBlock)) {
+                    Write-Error "Critical: Could not find the expected 'if (is_win && is_clang)' block in compiler/BUILD.gn. The source code may have changed."
+                    exit 1
+                }
+                $newContent = $fileContent.Replace($anchorBlock, $insertedBlock)
+                if ($newContent -eq $fileContent) {
+                    Write-Error "Critical: Failed to apply the Clang constexpr step budget patch to compiler/BUILD.gn."
+                    exit 1
+                }
+                Set-Content -Path $buildFilePath -Value $newContent -NoNewline
+                $verifyContent = Get-Content -Path $buildFilePath -Raw
+                if ($verifyContent.Contains($expectedFlagLine)) {
+                    Write-Output "Success: Applied Clang constexpr step budget patch to compiler/BUILD.gn."
+                } else {
+                    Write-Error "Critical: Verification failed after applying the Clang constexpr step budget patch."
+                    exit 1
+                }
 
           - name: Build Windows x64 Debug
             shell: pwsh
@@ -334,12 +391,8 @@ jobs:
           - name: Patch libc++ debug mode for modern LLVM
             shell: pwsh
             run: |
-                $cxxBuild = "v8\v8\build\config\c++\BUILD.gn"
-                $compilerBuild = "v8\v8\build\config\compiler\BUILD.gn"
-                $cxxContent = Get-Content -Path $cxxBuild -Raw
-                $cxxContent = $cxxContent -replace 'if \(enable_iterator_debugging\) \{\s*defines \+= \[ "_LIBCPP_ENABLE_DEBUG_MODE" \]\s*\}', ''
-                Set-Content -Path $cxxBuild -Value $cxxContent -NoNewline
-                $compilerContent = Get-Content -Path $compilerBuild -Raw
+                $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
+                $fileContent = Get-Content -Path $buildFilePath -Raw
                 $oldBlock = @'
                 if (use_safe_libcxx) {
                     defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE" ]
@@ -356,8 +409,69 @@ jobs:
                     defines += [ "_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_NONE" ]
                 }
                 '@
-                $compilerContent = $compilerContent.Replace($oldBlock, $newBlock)
-                Set-Content -Path $compilerBuild -Value $compilerContent -NoNewline
+                if ($fileContent.Contains($newBlock)) {
+                    Write-Output "Success: libc++ debug mode patch is already present in compiler/BUILD.gn."
+                    exit 0
+                }
+                if (-not $fileContent.Contains($oldBlock)) {
+                    Write-Error "Critical: Could not find the expected libc++ hardening block in compiler/BUILD.gn. The source code may have changed."
+                    exit 1
+                }
+                $newContent = $fileContent.Replace($oldBlock, $newBlock)
+                if ($newContent -eq $fileContent) {
+                    Write-Error "Critical: Failed to apply the libc++ debug mode patch to compiler/BUILD.gn."
+                    exit 1
+                }
+                Set-Content -Path $buildFilePath -Value $newContent -NoNewline
+                $verifyContent = Get-Content -Path $buildFilePath -Raw
+                if ($verifyContent.Contains($newBlock) -and -not $verifyContent.Contains($oldBlock)) {
+                    Write-Output "Success: Applied libc++ debug mode patch to compiler/BUILD.gn."
+                } else {
+                    Write-Error "Critical: Verification failed after applying the libc++ debug mode patch."
+                    exit 1
+                }
+
+          - name: Patch Clang constexpr step budget for debug builds
+            shell: pwsh
+            run: |
+                $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
+                $fileContent = Get-Content -Path $buildFilePath -Raw
+                $anchorBlock = @'
+                if (is_win && is_clang) {
+                '@
+                $insertedBlock = @'
+                if (is_win && is_clang) {
+                    if (is_debug) {
+                        cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]
+                    }
+                '@
+                $expectedFlagLine = '    cflags_cc += [ "/clang:-fconstexpr-steps=5000000" ]'
+                if ($fileContent.Contains($expectedFlagLine)) {
+                    if ($fileContent.Contains('if (is_win && is_clang) {') -and $fileContent.Contains('if (is_debug) {')) {
+                        Write-Output "Success: Clang constexpr step budget patch is already present in compiler/BUILD.gn."
+                        exit 0
+                    } else {
+                        Write-Error "Critical: Found the constexpr flag line, but the surrounding structure does not match the expected patch."
+                        exit 1
+                    }
+                }
+                if (-not $fileContent.Contains($anchorBlock)) {
+                    Write-Error "Critical: Could not find the expected 'if (is_win && is_clang)' block in compiler/BUILD.gn. The source code may have changed."
+                    exit 1
+                }
+                $newContent = $fileContent.Replace($anchorBlock, $insertedBlock)
+                if ($newContent -eq $fileContent) {
+                    Write-Error "Critical: Failed to apply the Clang constexpr step budget patch to compiler/BUILD.gn."
+                    exit 1
+                }
+                Set-Content -Path $buildFilePath -Value $newContent -NoNewline
+                $verifyContent = Get-Content -Path $buildFilePath -Raw
+                if ($verifyContent.Contains($expectedFlagLine)) {
+                    Write-Output "Success: Applied Clang constexpr step budget patch to compiler/BUILD.gn."
+                } else {
+                    Write-Error "Critical: Verification failed after applying the Clang constexpr step budget patch."
+                    exit 1
+                }
 
           - name: Build Windows arm64 Debug
             shell: pwsh
