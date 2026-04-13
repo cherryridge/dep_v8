@@ -37,7 +37,7 @@ runs:
           exit 1
         }
 
-    - name: Patch libc++ debug mode (1)
+    - name: Patch libc++ debug macro (1)
       shell: pwsh
       run: |
         $buildFilePath = "v8\v8\build\config\compiler\BUILD.gn"
@@ -81,39 +81,33 @@ runs:
           exit 1
         }
 
-    - name: Patch removed libc++ debug macro in c++ runtime config
+    - name: Patch libc++ debug macro (2)
       shell: pwsh
       run: |
         $buildFilePath = "v8\v8\build\config\c++\BUILD.gn"
         $fileContentRaw = Get-Content -Path $buildFilePath -Raw
         $fileContent = $fileContentRaw -replace "`r`n", "`n"
-        $oldLines = @(
-          '# 2. _LIBCPP_ENABLE_DEBUG_MODE enables iterator debugging and other'
-          '# expensive checks. Enable these only if enable_iterator_debugging is on.'
-          'if (enable_iterator_debugging) {'
-          '  defines += [ "_LIBCPP_ENABLE_DEBUG_MODE" ]'
-          '}'
-        )
-        $oldBlock = $oldLines -join "`n"
-        $newLines = @(
-          '# 2. Iterator debugging now uses _LIBCPP_HARDENING_MODE in'
+        $replacementLines = @(
+          '# Iterator debugging now uses _LIBCPP_HARDENING_MODE in'
           '# //build/config/compiler/BUILD.gn.'
           '# Do not define _LIBCPP_ENABLE_DEBUG_MODE here because modern libc++'
           '# removed it.'
         )
-        $newBlock = $newLines -join "`n"
-        if ($fileContent.Contains($newBlock) -and -not $fileContent.Contains('_LIBCPP_ENABLE_DEBUG_MODE')) {
+        $replacementBlock = $replacementLines -join "`n"
+        if (($fileContent.Contains($replacementBlock)) -and (-not $fileContent.Contains('_LIBCPP_ENABLE_DEBUG_MODE'))) {
           Write-Output "Success: removed libc++ debug macro patch is already present in c++/BUILD.gn."
           exit 0
         }
-        if (-not $fileContent.Contains($oldBlock)) {
+        $pattern = 'if \(enable_iterator_debugging\)\s*\{\s*defines \+= \[ "_LIBCPP_ENABLE_DEBUG_MODE" \]\s*\}'
+        $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        if (-not $regex.IsMatch($fileContent)) {
           $context = Select-String -Path $buildFilePath -Pattern '_LIBCPP_ENABLE_DEBUG_MODE|enable_iterator_debugging' -Context 3,3 | Out-String
           Write-Output "Diagnostic context from c++/BUILD.gn:"
           Write-Output $context
-          Write-Error "Critical: Could not find the expected _LIBCPP_ENABLE_DEBUG_MODE block in c++/BUILD.gn. The source code may have changed."
+          Write-Error "Critical: Could not find a replaceable _LIBCPP_ENABLE_DEBUG_MODE block in c++/BUILD.gn. The source code may have changed."
           exit 1
         }
-        $newContent = $fileContent.Replace($oldBlock, $newBlock)
+        $newContent = $regex.Replace($fileContent, $replacementBlock, 1)
         if ($newContent -eq $fileContent) {
           Write-Error "Critical: Failed to apply the removed libc++ debug macro patch to c++/BUILD.gn."
           exit 1
@@ -121,7 +115,7 @@ runs:
         Set-Content -Path $buildFilePath -Value $newContent -NoNewline
         $verifyContentRaw = Get-Content -Path $buildFilePath -Raw
         $verifyContent = $verifyContentRaw -replace "`r`n", "`n"
-        if ($verifyContent.Contains($newBlock) -and -not $verifyContent.Contains('_LIBCPP_ENABLE_DEBUG_MODE')) {
+        if (($verifyContent.Contains($replacementBlock)) -and (-not $verifyContent.Contains('_LIBCPP_ENABLE_DEBUG_MODE'))) {
           Write-Output "Success: Removed deprecated _LIBCPP_ENABLE_DEBUG_MODE from c++/BUILD.gn."
         } else {
           Write-Error "Critical: Verification failed after patching c++/BUILD.gn."
