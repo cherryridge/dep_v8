@@ -12,7 +12,6 @@ runs:
         $Pattern = "(RetryCustomAllocate\s*\(\s*)fn,"
         $Replacement = '$1[&]() { return fn(); },'
         $NewContent = [regex]::Replace($SourceContent, $Pattern, $Replacement)
-
         if ($NewContent -ne $SourceContent) {
           Set-Content -Path $V8SourcePath -Value $NewContent -NoNewline
           Write-Output "Success: Applied lambda wrapper patch to backing-store.cc."
