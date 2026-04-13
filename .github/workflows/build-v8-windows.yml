@@ -31,50 +31,13 @@ jobs:
   x64:
     runs-on: windows-latest
     steps:
-
     - name: Checkout This Repo
       uses: actions/checkout@v4
       with:
         clean: true
         fetch-depth: 1
-
-    - name: Set Global Git Configs
-      shell: pwsh
-      run: |
-        git config --global core.autocrlf false
-        git config --global core.filemode false
-        git config --global core.longpaths true
-        git config --global core.preloadindex true
-        git config --global core.fscache true
-
-    - name: Checkout Depot Tools
-      uses: newkdev/setup-depot-tools@v1.0.1
-
-    - name: Configure Googlesource auth
-      shell: pwsh
-      env:
-        GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
-      run: |
-        if ([string]::IsNullOrWhiteSpace($env:GOOGLESOURCE_GITCOOKIES)) {
-          Write-Host "No Googlesource auth configured."
-          exit 0
-        }
-        $cookiePath = Join-Path $HOME ".gitcookies"
-        Set-Content -Path $cookiePath -Value $env:GOOGLESOURCE_GITCOOKIES -NoNewline
-        git config --global http.cookiefile $cookiePath
-
-    - name: Verify Googlesource auth
-      shell: pwsh
-      run: |
-        $cookiePath = Join-Path $HOME ".gitcookies"
-        if (-not (Test-Path $cookiePath)) {
-          Write-Host "Skipping auth verification."
-          exit 0
-        }
-        git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Prepare
+      uses: ./.github/actions/prepare
 
     - name: Checkout V8 Source Code
       shell: cmd
@@ -165,50 +128,13 @@ jobs:
   arm64:
     runs-on: windows-latest
     steps:
-
     - name: Checkout This Repo
       uses: actions/checkout@v4
       with:
         clean: true
         fetch-depth: 1
-
-    - name: Set Global Git Configs
-      shell: pwsh
-      run: |
-        git config --global core.autocrlf false
-        git config --global core.filemode false
-        git config --global core.longpaths true
-        git config --global core.preloadindex true
-        git config --global core.fscache true
-
-    - name: Checkout Depot Tools
-      uses: newkdev/setup-depot-tools@v1.0.1
-
-    - name: Configure Googlesource auth
-      shell: pwsh
-      env:
-        GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
-      run: |
-        if ([string]::IsNullOrWhiteSpace($env:GOOGLESOURCE_GITCOOKIES)) {
-          Write-Host "No Googlesource auth configured."
-          exit 0
-        }
-        $cookiePath = Join-Path $HOME ".gitcookies"
-        Set-Content -Path $cookiePath -Value $env:GOOGLESOURCE_GITCOOKIES -NoNewline
-        git config --global http.cookiefile $cookiePath
-
-    - name: Verify Googlesource auth
-      shell: pwsh
-      run: |
-        $cookiePath = Join-Path $HOME ".gitcookies"
-        if (-not (Test-Path $cookiePath)) {
-          Write-Host "Skipping auth verification."
-          exit 0
-        }
-        git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Prepare
+      uses: ./.github/actions/prepare
 
     - name: Checkout V8 Source Code
       shell: cmd

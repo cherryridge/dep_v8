@@ -31,12 +31,13 @@ jobs:
   x64:
     runs-on: ubuntu-latest
     steps:
-
     - name: Checkout This Repo
       uses: actions/checkout@v4
       with:
         clean: true
         fetch-depth: 1
+    - name: Prepare
+      uses: ./.github/actions/prepare
 
     - name: Remove Everything to Free Up Space
       shell: bash
@@ -137,43 +138,6 @@ jobs:
         sudo rm -rf /var/*
         df -h
 
-    - name: Set Global Git Configs
-      shell: bash
-      run: |
-        git config --global core.autocrlf false
-        git config --global core.filemode false
-        git config --global core.longpaths true
-        git config --global core.preloadindex true
-        git config --global core.fscache true
-
-    - name: Check Depot Tools
-      uses: newkdev/setup-depot-tools@v1.0.1
-
-    - name: Configure Googlesource auth
-      shell: bash
-      env:
-        GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
-      run: |
-        set -euo pipefail
-        if [ -z "${GOOGLESOURCE_GITCOOKIES:-}" ]; then
-          echo "No Googlesource auth configured."
-          exit 0
-        fi
-        umask 077
-        printf '%s' "$GOOGLESOURCE_GITCOOKIES" > "$HOME/.gitcookies"
-        git config --global http.cookiefile "$HOME/.gitcookies"
-      
-    - name: Verify Googlesource auth
-      shell: bash
-      run: |
-        set -euo pipefail
-        if [ -z "${GOOGLESOURCE_GITCOOKIES:-}" ]; then
-          echo "No Googlesource auth configured."
-          exit 0
-        fi
-        git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
-        git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
-
     - name: Checkout V8 Source Code
       shell: bash
       run: |
@@ -265,12 +229,13 @@ jobs:
   arm64:
     runs-on: ubuntu-latest
     steps:
-
     - name: Checkout This Repo
       uses: actions/checkout@v4
       with:
         clean: true
         fetch-depth: 1
+    - name: Prepare
+      uses: ./.github/actions/prepare
 
     - name: Build Sysroot
       shell: bash
@@ -386,43 +351,6 @@ jobs:
         sudo apt clean
         sudo rm -rf /var/*
         df -h
-
-    - name: Set Global Git Configs
-      shell: bash
-      run: |
-        git config --global core.autocrlf false
-        git config --global core.filemode false
-        git config --global core.longpaths true
-        git config --global core.preloadindex true
-        git config --global core.fscache true
-
-    - name: Check Depot Tools
-      uses: newkdev/setup-depot-tools@v1.0.1
-
-    - name: Configure Googlesource auth
-      shell: bash
-      env:
-        GOOGLESOURCE_GITCOOKIES: ${{secrets.googlesource_gitcookies}}
-      run: |
-        set -euo pipefail
-        if [ -z "${GOOGLESOURCE_GITCOOKIES:-}" ]; then
-          echo "No Googlesource auth configured."
-          exit 0
-        fi
-        umask 077
-        printf '%s' "$GOOGLESOURCE_GITCOOKIES" > "$HOME/.gitcookies"
-        git config --global http.cookiefile "$HOME/.gitcookies"
-      
-    - name: Verify Googlesource auth
-      shell: bash
-      run: |
-        set -euo pipefail
-        if [ -z "${GOOGLESOURCE_GITCOOKIES:-}" ]; then
-          echo "No Googlesource auth configured."
-          exit 0
-        fi
-        git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
-        git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
 
     - name: Checkout V8 Source Code
       shell: bash
