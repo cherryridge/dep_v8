@@ -36,6 +36,28 @@ runs:
           exit 1
         }
 
+    - name: Patch runtime-test atomic_flag for MSVC STL
+      shell: pwsh
+      run: |
+        $runtimeTestPath = "v8\v8\src\runtime\runtime-test.cc"
+        $content = Get-Content -Path $runtimeTestPath -Raw
+        $oldLine = "  static std::atomic_flag printed_warning{false};"
+        $newLine = "  static std::atomic_flag printed_warning = ATOMIC_FLAG_INIT;"
+        if ($content.Contains($newLine)) {
+          Write-Output "Success: runtime-test.cc atomic_flag initializer patch is already present."
+          exit 0
+        }
+        if (-not $content.Contains($oldLine)) {
+          $context = Select-String -Path $runtimeTestPath -Pattern 'printed_warning|atomic_flag' -Context 3,3 | Out-String
+          Write-Output "Diagnostic context from runtime-test.cc:"
+          Write-Output $context
+          Write-Error "Critical: Could not find the replaceable atomic_flag bool initializer in runtime-test.cc. The source code may have changed."
+          exit 1
+        }
+        $newContent = $content.Replace($oldLine, $newLine)
+        Set-Content -Path $runtimeTestPath -Value $newContent -NoNewline
+        Write-Output "Success: Applied runtime-test.cc atomic_flag initializer patch."
+
     - name: Patch libc++ debug macro (1)
       shell: pwsh
       run: |

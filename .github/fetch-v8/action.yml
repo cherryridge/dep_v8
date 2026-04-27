@@ -1,0 +1,65 @@
+name: Fetch V8 Source Code
+description: Fetches V8 Source Code
+
+inputs:
+  commit:
+    required: true
+    description: Target commit of V8.
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout V8 Source Code (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: cmd
+      run: |
+        set DEPOT_TOOLS_WIN_TOOLCHAIN=0
+        mkdir v8
+        cd v8
+        fetch --nohooks --no-history v8
+
+    - name: Checkout Target Commit (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        $env:DEPOT_TOOLS_WIN_TOOLCHAIN=0
+        cd v8\v8
+        git config branch.autosetupmerge always
+        git config branch.autosetuprebase always
+        git fetch origin ${{inputs.commit}}
+        git checkout ${{inputs.commit}} || exit 1
+        git log -1 --format="%H - %s"
+
+    - name: Sync GClient (Windows)
+      if: ${{ runner.os == 'Windows' }}
+      shell: cmd
+      run: |
+        set DEPOT_TOOLS_WIN_TOOLCHAIN=0
+        cd v8\v8
+        gclient sync -D --no-history --shallow
+
+    - name: Checkout V8 Source Code (Unix-like)
+      if: ${{ runner.os != 'Windows' }}
+      shell: bash
+      run: |
+        mkdir v8
+        cd v8
+        fetch --nohooks --no-history v8
+
+    - name: Checkout Target Commit (Unix-like)
+      if: ${{ runner.os != 'Windows' }}
+      shell: bash
+      run: |
+        cd v8/v8
+        git config branch.autosetupmerge always
+        git config branch.autosetuprebase always
+        git fetch origin ${{inputs.commit}}
+        git checkout ${{inputs.commit}} || exit 1
+        git log -1 --format="%H - %s"
+
+    - name: Sync GClient (Unix-like)
+      if: ${{ runner.os != 'Windows' }}
+      shell: bash
+      run: |
+        cd v8/v8
+        gclient sync -D --no-history --shallow

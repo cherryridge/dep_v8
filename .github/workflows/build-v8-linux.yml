@@ -36,6 +36,7 @@ jobs:
       with:
         clean: true
         fetch-depth: 1
+
     - name: Prepare
       uses: ./.github/actions/prepare
       with:
@@ -140,30 +141,10 @@ jobs:
         sudo rm -rf /var/*
         df -h
 
-    - name: Checkout V8 Source Code
-      shell: bash
-      run: |
-        mkdir v8
-        cd v8
-        fetch --nohooks --no-history v8
+    - name: Fetch V8
+      uses: ./.github/actions/fetch-v8
 
-    - name: Checkout Target Commit
-      shell: bash
-      run: |
-        cd v8/v8
-        git config branch.autosetupmerge always
-        git config branch.autosetuprebase always
-        git fetch origin ${{inputs.commit}}
-        git checkout ${{inputs.commit}} || exit 1
-        git log -1 --format="%H - %s"
-
-    - name: Sync GClient
-      shell: bash
-      run: |
-        cd v8/v8
-        gclient sync -D --no-history --shallow
-
-    - name: Apply shared V8 Linux patches
+    - name: Apply Patches
       uses: ./.github/actions/linux-patches
 
     - name: Build Linux x64 Debug
@@ -228,6 +209,7 @@ jobs:
       with:
         clean: true
         fetch-depth: 1
+
     - name: Prepare
       uses: ./.github/actions/prepare
       with:
@@ -348,30 +330,10 @@ jobs:
         sudo rm -rf /var/*
         df -h
 
-    - name: Checkout V8 Source Code
-      shell: bash
-      run: |
-        mkdir v8
-        cd v8
-        fetch --nohooks --no-history v8
+    - name: Fetch V8
+      uses: ./.github/actions/fetch-v8
 
-    - name: Checkout Target Commit
-      shell: bash
-      run: |
-        cd v8/v8
-        git config branch.autosetupmerge always
-        git config branch.autosetuprebase always
-        git fetch origin ${{inputs.commit}}
-        git checkout ${{inputs.commit}} || exit 1
-        git log -1 --format="%H - %s"
-
-    - name: Sync GClient
-      shell: bash
-      run: |
-        cd v8/v8
-        gclient sync -D --no-history --shallow
-
-    - name: Apply shared V8 Linux patches
+    - name: Apply Patches
       uses: ./.github/actions/linux-patches
 
     - name: Move Sysroot
