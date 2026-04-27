@@ -4,6 +4,33 @@ description: V8 Linux Patches
 runs:
   using: composite
   steps:
+    - name: Patch wasm shuffle reducer optional fallback
+      shell: bash
+      run: |
+        SHUFFLE_REDUCER_CC="v8/v8/src/compiler/turboshaft/wasm-shuffle-reducer.cc"
+        OLD_TEXT='max.value_or({})'
+        NEW_TEXT='max.value_or(uint8_t{0})'
+        if [ ! -f "$SHUFFLE_REDUCER_CC" ]; then
+          echo "V8 wasm shuffle reducer source not found: $SHUFFLE_REDUCER_CC"
+          exit 1
+        fi
+        if grep -Fq "$NEW_TEXT" "$SHUFFLE_REDUCER_CC"; then
+          echo "Success: wasm-shuffle-reducer.cc optional fallback patch is already present."
+          exit 0
+        fi
+        if ! grep -Fq "$OLD_TEXT" "$SHUFFLE_REDUCER_CC"; then
+          echo "Diagnostic context from wasm-shuffle-reducer.cc:"
+          grep -n -E 'value_or|max =|std::optional<uint8_t>' "$SHUFFLE_REDUCER_CC" || true
+          echo "Critical: Could not find the replaceable optional fallback in wasm-shuffle-reducer.cc. The source code may have changed."
+          exit 1
+        fi
+        perl -0pi -e 's/max\.value_or\(\{\}\)/max.value_or(uint8_t{0})/g' "$SHUFFLE_REDUCER_CC"
+        if grep -Fq "$OLD_TEXT" "$SHUFFLE_REDUCER_CC" || ! grep -Fq "$NEW_TEXT" "$SHUFFLE_REDUCER_CC"; then
+          echo "Critical: Verification failed after patching wasm-shuffle-reducer.cc."
+          exit 1
+        fi
+        echo "Success: Applied wasm-shuffle-reducer.cc optional fallback patch."
+
     - name: Patch V8 Bigint for libstdc++
       shell: bash
       run: |

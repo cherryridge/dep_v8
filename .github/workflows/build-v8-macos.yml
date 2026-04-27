@@ -47,6 +47,9 @@ jobs:
       with:
         commit: ${{inputs.commit}}
 
+    - name: Apply MacOS Patches
+      uses: ./.github/actions/macos-patches
+
     - name: Set XCode Version
       uses: maxim-lobanov/setup-xcode@v1.6.0
       with:
@@ -95,6 +98,9 @@ jobs:
       with:
         commit: ${{inputs.commit}}
 
+    - name: Apply MacOS Patches
+      uses: ./.github/actions/macos-patches
+
     - name: Set XCode Version
       uses: maxim-lobanov/setup-xcode@v1.6.0
       with:
@@ -142,6 +148,9 @@ jobs:
       uses: ./.github/actions/fetch-v8
       with:
         commit: ${{inputs.commit}}
+
+    - name: Apply MacOS Patches
+      uses: ./.github/actions/macos-patches
 
     - name: Set XCode Version
       uses: maxim-lobanov/setup-xcode@v1.6.0
@@ -203,6 +212,9 @@ jobs:
       uses: ./.github/actions/fetch-v8
       with:
         commit: ${{inputs.commit}}
+
+    - name: Apply MacOS Patches
+      uses: ./.github/actions/macos-patches
 
     - name: Set XCode Version
       uses: maxim-lobanov/setup-xcode@v1.6.0

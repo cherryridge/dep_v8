@@ -146,7 +146,7 @@ jobs:
       with:
         commit: ${{inputs.commit}}
 
-    - name: Apply Patches
+    - name: Apply Linux Patches
       uses: ./.github/actions/linux-patches
 
     - name: Build Linux x64 Debug
@@ -337,7 +337,7 @@ jobs:
       with:
         commit: ${{inputs.commit}}
 
-    - name: Apply Patches
+    - name: Apply Linux Patches
       uses: ./.github/actions/linux-patches
 
     - name: Move Sysroot
