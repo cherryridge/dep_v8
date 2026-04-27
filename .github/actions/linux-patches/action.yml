@@ -19,14 +19,27 @@ runs:
     - name: Patch V8 nullptr_t for libstdc++
       shell: bash
       run: |
-        V8_OBJECT_H="v8/v8/include/v8-object.h"
-        if grep -q 'std::nullptr_t setter = nullptr' "$V8_OBJECT_H"; then
-          echo "Already patched, skipping."
-          exit 0
-        fi
-        if ! grep -q 'nullptr_t setter = nullptr' "$V8_OBJECT_H"; then
-          echo "Patch target not found in v8-object.h"
+        V8_INCLUDE_DIR="v8/v8/include"
+        if [ ! -d "$V8_INCLUDE_DIR" ]; then
+          echo "V8 include directory not found: $V8_INCLUDE_DIR"
           exit 1
         fi
-        sed -i 's/nullptr_t setter = nullptr/std::nullptr_t setter = nullptr/' "$V8_OBJECT_H"
-        echo "Success: Replaced nullptr_t with std::nullptr_t in v8-object.h"
+        mapfile -t V8_NULLPTR_FILES < <(
+          grep -RIl --include='*.h' -E '(^|[^[:alnum:]_:])nullptr_t([^[:alnum:]_]|$)' "$V8_INCLUDE_DIR" || true
+        )
+        if [ "${#V8_NULLPTR_FILES[@]}" -eq 0 ]; then
+          echo "No bare nullptr_t found, skipping."
+          exit 0
+        fi
+        for file in "${V8_NULLPTR_FILES[@]}"; do
+          sed -i -E 's/(^|[^[:alnum:]_:])nullptr_t([^[:alnum:]_]|$)/\1std::nullptr_t\2/g' "$file"
+        done
+        remaining=$(
+          grep -RIn --include='*.h' -E '(^|[^[:alnum:]_:])nullptr_t([^[:alnum:]_]|$)' "$V8_INCLUDE_DIR" || true
+        )
+        if [ -n "$remaining" ]; then
+          echo "Bare nullptr_t remains after patch:"
+          echo "$remaining"
+          exit 1
+        fi
+        echo "Success: Replaced bare nullptr_t with std::nullptr_t in ${#V8_NULLPTR_FILES[@]} V8 public header file(s)."
