@@ -143,6 +143,8 @@ jobs:
 
     - name: Fetch V8
       uses: ./.github/actions/fetch-v8
+      with:
+        commit: ${{inputs.commit}}
 
     - name: Apply Patches
       uses: ./.github/actions/linux-patches
@@ -332,6 +334,8 @@ jobs:
 
     - name: Fetch V8
       uses: ./.github/actions/fetch-v8
+      with:
+        commit: ${{inputs.commit}}
 
     - name: Apply Patches
       uses: ./.github/actions/linux-patches

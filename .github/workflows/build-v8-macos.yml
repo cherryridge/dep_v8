@@ -44,6 +44,8 @@ jobs:
 
     - name: Fetch V8
       uses: ./.github/actions/fetch-v8
+      with:
+        commit: ${{inputs.commit}}
 
     - name: Set XCode Version
       uses: maxim-lobanov/setup-xcode@v1.6.0
@@ -90,6 +92,8 @@ jobs:
 
     - name: Fetch V8
       uses: ./.github/actions/fetch-v8
+      with:
+        commit: ${{inputs.commit}}
 
     - name: Set XCode Version
       uses: maxim-lobanov/setup-xcode@v1.6.0
@@ -136,6 +140,8 @@ jobs:
 
     - name: Fetch V8
       uses: ./.github/actions/fetch-v8
+      with:
+        commit: ${{inputs.commit}}
 
     - name: Set XCode Version
       uses: maxim-lobanov/setup-xcode@v1.6.0
@@ -195,6 +201,8 @@ jobs:
 
     - name: Fetch V8
       uses: ./.github/actions/fetch-v8
+      with:
+        commit: ${{inputs.commit}}
 
     - name: Set XCode Version
       uses: maxim-lobanov/setup-xcode@v1.6.0
