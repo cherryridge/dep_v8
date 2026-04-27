@@ -1,4 +1,4 @@
-﻿name: Prepare for a building job
+name: Prepare for a building job
 description: Prepare for a building job
 inputs:
   googlesource_gitcookies:

@@ -1,0 +1,32 @@
+name: V8 Linux Patches
+description: V8 Linux Patches
+
+runs:
+  using: composite
+  steps:
+    - name: Patch V8 Bigint for libstdc++
+      shell: bash
+      run: |
+        BIGINT_H="v8/v8/src/bigint/bigint.h"
+        if grep -q '#include <memory>' "$BIGINT_H"; then
+          echo "Already patched, skipping."
+          exit 0
+        fi
+        # Insert after the last existing #include line in the file
+        sed -i '/#include/a #include <memory>' "$BIGINT_H"
+        echo "Success: Added #include <memory> to bigint.h"
+
+    - name: Patch V8 nullptr_t for libstdc++
+      shell: bash
+      run: |
+        V8_OBJECT_H="v8/v8/include/v8-object.h"
+        if grep -q 'std::nullptr_t setter = nullptr' "$V8_OBJECT_H"; then
+          echo "Already patched, skipping."
+          exit 0
+        fi
+        if ! grep -q 'nullptr_t setter = nullptr' "$V8_OBJECT_H"; then
+          echo "Patch target not found in v8-object.h"
+          exit 1
+        fi
+        sed -i 's/nullptr_t setter = nullptr/std::nullptr_t setter = nullptr/' "$V8_OBJECT_H"
+        echo "Success: Replaced nullptr_t with std::nullptr_t in v8-object.h"
