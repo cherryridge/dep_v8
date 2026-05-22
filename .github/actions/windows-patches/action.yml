@@ -58,58 +58,6 @@ runs:
         Set-Content -Path $runtimeTestPath -Value $newContent -NoNewline
         Write-Output "Success: Applied runtime-test.cc atomic_flag initializer patch."
 
-    - name: Install generated map layout patch helper
-      shell: pwsh
-      run: |
-        $scriptPath = "v8\v8\patch-windows-generated-map-layout.ps1"
-        @'
-        param(
-          [Parameter(Mandatory = $true)]
-          [string] $BuildDir
-        )
-
-        $ErrorActionPreference = "Stop"
-        $mapTqPath = Join-Path $BuildDir "gen\torque-generated\src\objects\map-tq.cc"
-        if (-not (Test-Path -LiteralPath $mapTqPath)) {
-          Write-Error "Critical: Could not find generated map-tq.cc at '$mapTqPath'. Run this helper after gn gen."
-          exit 1
-        }
-
-        $content = Get-Content -LiteralPath $mapTqPath -Raw
-        $replacements = [ordered]@{
-          "static_assert(kSize == sizeof(ExtendedMap));" = "static_assert(true /* ExtendedMap size */);"
-          "static_assert(kExtendedPaddingOffset == offsetof(JSInterceptorMap, extended_padding_)," = "static_assert(true /* JSInterceptorMap::extended_padding_ */,"
-          "static_assert(kNamedInterceptorOffset == offsetof(JSInterceptorMap, named_interceptor_)," = "static_assert(true /* JSInterceptorMap::named_interceptor_ */,"
-          "static_assert(kIndexedInterceptorOffset == offsetof(JSInterceptorMap, indexed_interceptor_)," = "static_assert(true /* JSInterceptorMap::indexed_interceptor_ */,"
-          "static_assert(kSize == sizeof(JSInterceptorMap));" = "static_assert(true /* JSInterceptorMap size */);"
-        }
-
-        $newContent = $content
-        $missing = @()
-        foreach ($entry in $replacements.GetEnumerator()) {
-          if ($newContent.Contains($entry.Key)) {
-            $newContent = $newContent.Replace($entry.Key, $entry.Value)
-          } elseif (-not $newContent.Contains($entry.Value)) {
-            $missing += $entry.Key
-          }
-        }
-
-        if ($missing.Count -gt 0) {
-          Write-Output "Diagnostic context from generated map-tq.cc:"
-          Select-String -LiteralPath $mapTqPath -Pattern "ExtendedMap|JSInterceptorMap|extended_padding_|named_interceptor_|indexed_interceptor_" -Context 2,2 | Out-String | Write-Output
-          Write-Error "Critical: Could not find expected generated map layout assertions. The generated source may have changed."
-          exit 1
-        }
-
-        if ($newContent -ne $content) {
-          Set-Content -LiteralPath $mapTqPath -Value $newContent -NoNewline
-          Write-Output "Success: Patched generated map layout assertions in $mapTqPath."
-        } else {
-          Write-Output "Success: Generated map layout assertions are already patched in $mapTqPath."
-        }
-        '@ | Set-Content -Path $scriptPath -NoNewline
-        Write-Output "Success: Installed generated map layout patch helper."
-
     - name: Patch libc++ debug macro (1)
       shell: pwsh
       run: |
