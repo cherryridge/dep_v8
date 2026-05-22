@@ -167,13 +167,13 @@ jobs:
       with:
         googlesource_gitcookies: ${{secrets.googlesource_gitcookies}}
 
-    - name: Build Sysroot
+    - name: Initialize Cross Compile Environment
       shell: bash
       run: |
         mkdir sysroots
         cd sysroots
         sudo apt update
-        sudo apt install -y debootstrap qemu-user-static binfmt-support rsync
+        sudo apt install -y debootstrap qemu-user-static binfmt-support rsync g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
         sudo debootstrap --variant=minbase --arch=amd64 trixie debian_trixie_amd64-sysroot http://deb.debian.org/debian
         sudo chroot debian_trixie_amd64-sysroot apt-get update
         sudo chroot debian_trixie_amd64-sysroot apt-get install -y --no-install-recommends libc6-dev libstdc++-14-dev zlib1g-dev
@@ -189,11 +189,6 @@ jobs:
       uses: ./.github/actions/fetch-v8
       with:
         commit: ${{inputs.commit}}
-
-    - name: Reinstall arm64 Cross Toolchain
-      shell: bash
-      run: |
-        sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
 
     - name: Apply Linux Patches
       uses: ./.github/actions/linux-patches
@@ -245,13 +240,13 @@ jobs:
       with:
         googlesource_gitcookies: ${{secrets.googlesource_gitcookies}}
 
-    - name: Build Sysroot
+    - name: Initialize Cross Compile Environment
       shell: bash
       run: |
         mkdir sysroots
         cd sysroots
         sudo apt update
-        sudo apt install -y debootstrap qemu-user-static binfmt-support rsync
+        sudo apt install -y debootstrap qemu-user-static binfmt-support rsync g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
         sudo debootstrap --variant=minbase --arch=amd64 trixie debian_trixie_amd64-sysroot http://deb.debian.org/debian
         sudo chroot debian_trixie_amd64-sysroot apt-get update
         sudo chroot debian_trixie_amd64-sysroot apt-get install -y --no-install-recommends libc6-dev libstdc++-14-dev zlib1g-dev
@@ -267,11 +262,6 @@ jobs:
       uses: ./.github/actions/fetch-v8
       with:
         commit: ${{inputs.commit}}
-
-    - name: Reinstall arm64 Cross Toolchain
-      shell: bash
-      run: |
-        sudo apt install -y g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
 
     - name: Apply Linux Patches
       uses: ./.github/actions/linux-patches
