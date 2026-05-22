@@ -32,7 +32,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Checkout This Repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6.0.2
       with:
         clean: true
         fetch-depth: 1
@@ -83,7 +83,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Checkout This Repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6.0.2
       with:
         clean: true
         fetch-depth: 1
@@ -134,7 +134,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Checkout This Repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6.0.2
       with:
         clean: true
         fetch-depth: 1
@@ -198,7 +198,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Checkout This Repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6.0.2
       with:
         clean: true
         fetch-depth: 1
