@@ -125,20 +125,38 @@ jobs:
             contents: write
         steps:
 
-          - name: Download Artifact v8_windows_x64
+          - name: Download Artifact v8_windows_x64_debug
             uses: actions/download-artifact@v4
             with:
-                name: v8_windows_x64
-                path: v8_windows_x64
+                name: v8_windows_x64_debug
+                path: v8_windows_x64_debug
                 github-token: ${{github.token}}
                 repository: ${{github.repository}}
                 run-id: ${{needs.build-windows.outputs.runid}}
 
-          - name: Download Artifact v8_windows_arm64
+          - name: Download Artifact v8_windows_x64_release
             uses: actions/download-artifact@v4
             with:
-                name: v8_windows_arm64
-                path: v8_windows_arm64
+                name: v8_windows_x64_release
+                path: v8_windows_x64_release
+                github-token: ${{github.token}}
+                repository: ${{github.repository}}
+                run-id: ${{needs.build-windows.outputs.runid}}
+
+          - name: Download Artifact v8_windows_arm64_debug
+            uses: actions/download-artifact@v4
+            with:
+                name: v8_windows_arm64_debug
+                path: v8_windows_arm64_debug
+                github-token: ${{github.token}}
+                repository: ${{github.repository}}
+                run-id: ${{needs.build-windows.outputs.runid}}
+
+          - name: Download Artifact v8_windows_arm64_release
+            uses: actions/download-artifact@v4
+            with:
+                name: v8_windows_arm64_release
+                path: v8_windows_arm64_release
                 github-token: ${{github.token}}
                 repository: ${{github.repository}}
                 run-id: ${{needs.build-windows.outputs.runid}}
@@ -218,7 +236,7 @@ jobs:
           - name: Release Artifacts
             uses: ncipollo/release-action@v1.16.0
             with:
-                artifacts: v8_windows_x64/v8_windows_x64_debug.7z, v8_windows_x64/v8_windows_x64_release.7z, v8_windows_arm64/v8_windows_arm64_debug.7z, v8_windows_arm64/v8_windows_arm64_release.7z, v8_linux_x64_debug/v8_linux_x64_debug.7z, v8_linux_x64_release/v8_linux_x64_release.7z, v8_linux_arm64_debug/v8_linux_arm64_debug.7z, v8_linux_arm64_release/v8_linux_arm64_release.7z, v8_macos_x64_debug/v8_macos_x64_debug.7z, v8_macos_x64_release/v8_macos_x64_release.7z, v8_macos_arm64_debug/v8_macos_arm64_debug.7z, v8_macos_arm64_release/v8_macos_arm64_release.7z
+                artifacts: v8_windows_x64_debug/v8_windows_x64_debug.7z, v8_windows_x64_release/v8_windows_x64_release.7z, v8_windows_arm64_debug/v8_windows_arm64_debug.7z, v8_windows_arm64_release/v8_windows_arm64_release.7z, v8_linux_x64_debug/v8_linux_x64_debug.7z, v8_linux_x64_release/v8_linux_x64_release.7z, v8_linux_arm64_debug/v8_linux_arm64_debug.7z, v8_linux_arm64_release/v8_linux_arm64_release.7z, v8_macos_x64_debug/v8_macos_x64_debug.7z, v8_macos_x64_release/v8_macos_x64_release.7z, v8_macos_arm64_debug/v8_macos_arm64_debug.7z, v8_macos_arm64_release/v8_macos_arm64_release.7z
                 commit: ${{needs.update-version.outputs.updated_commit}}
                 tag: ${{needs.check.outputs.latest_version}}
 
