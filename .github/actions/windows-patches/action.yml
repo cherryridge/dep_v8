@@ -287,7 +287,7 @@ runs:
             '#endif' + "`n"
           $regex = [regex]::new($extendedMapCppPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
           if (-not $regex.IsMatch($mapH)) {
-            $context = Select-String -Path $mapHPath -Pattern 'ExtendedMap|bit_field_ex_|extended_padding_' -Context 4,4 | Out-String
+            $context = Select-String -Path $mapHPath -Pattern 'ExtendedMap|bit_field_ex_|extended_padding_|extended_map_padding_' -Context 4,4 | Out-String
             Write-Output "Diagnostic context from map.h:"
             Write-Output $context
             Write-Error "Critical: Could not patch ExtendedMap in map.h."
@@ -378,9 +378,51 @@ runs:
           Write-Error "Critical: Could not find JSInterceptorMap C++ definition."
           exit 1
         }
+        # 5. JSInterceptorMap::Initialize used to clear the padding field while it
+        # lived directly in JSInterceptorMap. After moving that padding into
+        # ExtendedMap, clear the new explicit padding fields instead.
+        $mapInlPath = "v8\v8\src\objects\map-inl.h"
+        if (-not (Test-Path $mapInlPath)) {
+          Write-Error "Critical: Could not find $mapInlPath"
+          exit 1
+        }
+        $mapInl = Normalize-Newlines (Get-Content -Path $mapInlPath -Raw)
+        if ([regex]::IsMatch($mapInl, 'extended_map_padding_4_byte_a_\s*=\s*0;')) {
+          Write-Output "Success: JSInterceptorMap::Initialize padding clear is already patched."
+        } else {
+          $oldPaddingClearPattern = 'memset\(extended_padding_,\s*0,\s*sizeof\(extended_padding_\)\);'
+          $newPaddingClear =
+            '#if TAGGED_SIZE_8_BYTES' + "`n" +
+            '  extended_map_padding_8_byte_a_ = 0;' + "`n" +
+            '  extended_map_padding_8_byte_b_ = 0;' + "`n" +
+            '  extended_map_padding_8_byte_c_ = 0;' + "`n" +
+            '#else' + "`n" +
+            '  extended_map_padding_4_byte_a_ = 0;' + "`n" +
+            '  extended_map_padding_4_byte_b_ = 0;' + "`n" +
+            '#endif'
+          $regex = [regex]::new($oldPaddingClearPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+          if (-not $regex.IsMatch($mapInl)) {
+            $context = Select-String -Path $mapInlPath -Pattern 'JSInterceptorMap::Initialize|extended_padding_|extended_map_padding_|memset' -Context 8,8 | Out-String
+            Write-Output "Diagnostic context from map-inl.h:"
+            Write-Output $context
+            Write-Error "Critical: Could not patch JSInterceptorMap::Initialize padding clear in map-inl.h."
+            exit 1
+          }
+          $newMapInl = $regex.Replace($mapInl, $newPaddingClear, 1)
+          Write-NormalizedFile -path $mapInlPath -text $newMapInl
+          $verifyMapInl = Normalize-Newlines (Get-Content -Path $mapInlPath -Raw)
+          if (-not [regex]::IsMatch($verifyMapInl, 'extended_map_padding_4_byte_a_\s*=\s*0;')) {
+            $context = Select-String -Path $mapInlPath -Pattern 'JSInterceptorMap::Initialize|extended_padding_|extended_map_padding_|memset' -Context 8,8 | Out-String
+            Write-Output "Diagnostic context from map-inl.h after attempted patch:"
+            Write-Output $context
+            Write-Error "Critical: Verification failed after patching JSInterceptorMap::Initialize padding clear."
+            exit 1
+          }
+          Write-Output "Success: Patched JSInterceptorMap::Initialize padding clear in map-inl.h."
+        }
         # Final diagnostics.
         Write-Output "Relevant map.tq context:"
         Select-String -Path $mapTqPath -Pattern 'ExtendedMap|bit_field_ex|extended_padding' -Context 3,3 | Out-String | Write-Output
         Write-Output "Relevant map.h context:"
-        Select-String -Path $mapHPath -Pattern 'ExtendedMap|bit_field_ex_|extended_padding_' -Context 3,3 | Out-String | Write-Output
+        Select-String -Path $mapHPath -Pattern 'ExtendedMap|bit_field_ex_|extended_padding_|extended_map_padding_' -Context 3,3 | Out-String | Write-Output
         Write-Output "Success: Applied ExtendedMap / JSInterceptorMap MSVC ABI layout patch."
