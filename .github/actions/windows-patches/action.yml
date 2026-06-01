@@ -229,7 +229,7 @@ runs:
           -message "Critical: Could not find ExtendedMap in map.tq. Source layout may have changed."
         $extendedMapTqHasPadding = [regex]::IsMatch(
           $mapTq,
-          'extern class ExtendedMap extends Map \{[\s\S]*?extended_padding\[3\]: uint8;[\s\S]*?extended_padding\[7\]: uint8;'
+          'extern class ExtendedMap extends Map \{[\s\S]*?extended_map_padding_4_byte_a: uint8;[\s\S]*?extended_map_padding_4_byte_b: uint16;[\s\S]*?extended_map_padding_8_byte_a: uint8;[\s\S]*?extended_map_padding_8_byte_b: uint16;[\s\S]*?extended_map_padding_8_byte_c: uint32;'
         )
         if ($extendedMapTqHasPadding) {
           Write-Output "Success: ExtendedMap Torque padding is already present."
@@ -240,8 +240,11 @@ runs:
           $extendedMapTqReplacement =
             '$1' +
             ' // MSVC ABI: model the rounded sizeof(ExtendedMap) in Torque.' + "`n" +
-            ' @ifnot(TAGGED_SIZE_8_BYTES) extended_padding[3]: uint8;' + "`n" +
-            ' @if(TAGGED_SIZE_8_BYTES) extended_padding[7]: uint8;' + "`n" +
+            ' @ifnot(TAGGED_SIZE_8_BYTES) extended_map_padding_4_byte_a: uint8;' + "`n" +
+            ' @ifnot(TAGGED_SIZE_8_BYTES) extended_map_padding_4_byte_b: uint16;' + "`n" +
+            ' @if(TAGGED_SIZE_8_BYTES) extended_map_padding_8_byte_a: uint8;' + "`n" +
+            ' @if(TAGGED_SIZE_8_BYTES) extended_map_padding_8_byte_b: uint16;' + "`n" +
+            ' @if(TAGGED_SIZE_8_BYTES) extended_map_padding_8_byte_c: uint32;' + "`n" +
             '}'
           $regex = [regex]::new($extendedMapTqPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
           if (-not $regex.IsMatch($mapTq)) {
