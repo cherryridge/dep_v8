@@ -4,7 +4,7 @@ description: V8 Windows Patches
 runs:
   using: composite
   steps:
-    - name: Patch V8 for MSVC STL
+    - name: Patch V8 Function Type for MSVC STL
       shell: pwsh
       run: |
         $V8SourcePath = "v8\v8\src\objects\backing-store.cc"
@@ -184,3 +184,193 @@ runs:
           Write-Error "Critical: Verification failed after applying the Clang constexpr step budget patch."
           exit 1
         }
+
+    - name: Patch ExtendedMap / JSInterceptorMap layout for MSVC ABI
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        function Normalize-Newlines {
+          param([string]$text)
+          return ($text -replace "`r`n", "`n")
+        }
+        function Write-NormalizedFile {
+          param(
+            [string]$path,
+            [string]$text
+          )
+          Set-Content -Path $path -Value $text -NoNewline
+        }
+        function Require-Regex {
+          param(
+            [string]$text,
+            [string]$pattern,
+            [string]$message
+          )
+          if (-not [regex]::IsMatch($text, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+            Write-Error $message
+            exit 1
+          }
+        }
+        $mapTqPath = "v8\v8\src\objects\map.tq"
+        $mapHPath = "v8\v8\src\objects\map.h"
+        if (-not (Test-Path $mapTqPath)) {
+          Write-Error "Critical: Could not find $mapTqPath"
+          exit 1
+        }
+        if (-not (Test-Path $mapHPath)) {
+          Write-Error "Critical: Could not find $mapHPath"
+          exit 1
+        }
+        # 1. Make ExtendedMap own its tail padding in Torque.
+        $mapTq = Normalize-Newlines (Get-Content -Path $mapTqPath -Raw)
+        Require-Regex `
+          -text $mapTq `
+          -pattern 'extern class ExtendedMap extends Map' `
+          -message "Critical: Could not find ExtendedMap in map.tq. Source layout may have changed."
+        $extendedMapTqHasPadding = [regex]::IsMatch(
+          $mapTq,
+          'extern class ExtendedMap extends Map \{[\s\S]*?extended_padding\[3\]: uint8;[\s\S]*?extended_padding\[7\]: uint8;'
+        )
+        if ($extendedMapTqHasPadding) {
+          Write-Output "Success: ExtendedMap Torque padding is already present."
+        } else {
+          $extendedMapTqPattern =
+            '(extern class ExtendedMap extends Map \{\s*bit_field_ex: ExtendedMapBitFields;\s*)' +
+            '(// Leaves kTaggedSize-1 unused bytes, they will be used by subclasses\.\s*)?\}'
+          $extendedMapTqReplacement =
+            '$1' +
+            ' // MSVC ABI: model the rounded sizeof(ExtendedMap) in Torque.' + "`n" +
+            ' @ifnot(TAGGED_SIZE_8_BYTES) extended_padding[3]: uint8;' + "`n" +
+            ' @if(TAGGED_SIZE_8_BYTES) extended_padding[7]: uint8;' + "`n" +
+            '}'
+          $regex = [regex]::new($extendedMapTqPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+          if (-not $regex.IsMatch($mapTq)) {
+            $context = Select-String -Path $mapTqPath -Pattern 'ExtendedMap|bit_field_ex|extended_padding' -Context 4,4 | Out-String
+            Write-Output "Diagnostic context from map.tq:"
+            Write-Output $context
+            Write-Error "Critical: Could not patch ExtendedMap in map.tq."
+            exit 1
+          }
+          $newMapTq = $regex.Replace($mapTq, $extendedMapTqReplacement, 1)
+          Write-NormalizedFile -path $mapTqPath -text $newMapTq
+          Write-Output "Success: Added ExtendedMap Torque tail padding."
+        }
+        # 2. Make ExtendedMap own its tail padding in C++.
+        $mapH = Normalize-Newlines (Get-Content -Path $mapHPath -Raw)
+        Require-Regex `
+          -text $mapH `
+          -pattern 'class ExtendedMap : public Map' `
+          -message "Critical: Could not find ExtendedMap in map.h. Source layout may have changed."
+        $extendedMapCppHasPadding = [regex]::IsMatch(
+          $mapH,
+          'class ExtendedMap : public Map \{[\s\S]*?uint8_t extended_padding_\[kTaggedSize - 1\];'
+        )
+        if ($extendedMapCppHasPadding) {
+          Write-Output "Success: ExtendedMap C++ padding is already present."
+        } else {
+          $extendedMapCppPattern =
+            '(std::atomic<uint8_t> bit_field_ex_;\s*)' +
+            '(// Leaves kTaggedSize-1 unused bytes, they will be used by subclasses\.\s*)'
+          $extendedMapCppReplacement =
+            '$1' +
+            '// MSVC ABI: make the abstract base own its rounded tail padding.' + "`n" +
+            'uint8_t extended_padding_[kTaggedSize - 1];' + "`n"
+          $regex = [regex]::new($extendedMapCppPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+          if (-not $regex.IsMatch($mapH)) {
+            $context = Select-String -Path $mapHPath -Pattern 'ExtendedMap|bit_field_ex_|extended_padding_' -Context 4,4 | Out-String
+            Write-Output "Diagnostic context from map.h:"
+            Write-Output $context
+            Write-Error "Critical: Could not patch ExtendedMap in map.h."
+            exit 1
+          }
+          $newMapH = $regex.Replace($mapH, $extendedMapCppReplacement, 1)
+          Write-NormalizedFile -path $mapHPath -text $newMapH
+          Write-Output "Success: Added ExtendedMap C++ tail padding."
+        }
+        function Remove-JSInterceptorMapTorquePadding {
+          param([string]$path)
+          if (-not (Test-Path $path)) {
+            return $false
+          }
+          $text = Normalize-Newlines (Get-Content -Path $path -Raw)
+          if (-not [regex]::IsMatch($text, 'extern class JSInterceptorMap extends ExtendedMap')) {
+            return $false
+          }
+          $pattern =
+            '(extern class JSInterceptorMap extends ExtendedMap \{\s*)' +
+            '@ifnot\(TAGGED_SIZE_8_BYTES\)\s+extended_padding\[3\]: uint8;\s*' +
+            '@if\(TAGGED_SIZE_8_BYTES\)\s+extended_padding\[7\]: uint8;\s*'
+          $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+          if ($regex.IsMatch($text)) {
+            $newText = $regex.Replace($text, '$1', 1)
+            Write-NormalizedFile -path $path -text $newText
+            Write-Output "Success: Removed JSInterceptorMap Torque padding from $path"
+          } else {
+            $classBlock = [regex]::Match(
+              $text,
+              'extern class JSInterceptorMap extends ExtendedMap \{[\s\S]*?\}'
+            ).Value
+            if ($classBlock -match 'extended_padding\[') {
+              Write-Output "Diagnostic JSInterceptorMap Torque block from $path:"
+              Write-Output $classBlock
+              Write-Error "Critical: Found JSInterceptorMap padding, but could not remove it."
+              exit 1
+            }
+            Write-Output "Success: JSInterceptorMap Torque padding is already absent in $path"
+          }
+          return $true
+        }
+        function Remove-JSInterceptorMapCppPadding {
+          param([string]$path)
+          if (-not (Test-Path $path)) {
+            return $false
+          }
+          $text = Normalize-Newlines (Get-Content -Path $path -Raw)
+          if (-not [regex]::IsMatch($text, 'class JSInterceptorMap : public ExtendedMap')) {
+            return $false
+          }
+          $pattern =
+            '(V8_OBJECT class JSInterceptorMap : public ExtendedMap \{[\s\S]*?)' +
+            '\s*uint8_t extended_padding_\[kTaggedSize - 1\];\s*'
+          $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+          if ($regex.IsMatch($text)) {
+            $newText = $regex.Replace($text, '$1', 1)
+            Write-NormalizedFile -path $path -text $newText
+            Write-Output "Success: Removed JSInterceptorMap C++ padding from $path"
+          } else {
+            $classBlock = [regex]::Match(
+              $text,
+              'V8_OBJECT class JSInterceptorMap : public ExtendedMap \{[\s\S]*?\} V8_OBJECT_END;'
+            ).Value
+            if ($classBlock -match 'extended_padding_') {
+              Write-Output "Diagnostic JSInterceptorMap C++ block from $path:"
+              Write-Output $classBlock
+              Write-Error "Critical: Found JSInterceptorMap padding, but could not remove it."
+              exit 1
+            }
+            Write-Output "Success: JSInterceptorMap C++ padding is already absent in $path"
+          }
+          return $true
+        }
+        # Newer V8 has JSInterceptorMap split into its own files.
+        # Older V8 may still keep it in map.tq / map.h.
+        $patchedTorqueOwner = $false
+        $patchedTorqueOwner = (Remove-JSInterceptorMapTorquePadding "v8\v8\src\objects\js-interceptor-map.tq") -or $patchedTorqueOwner
+        $patchedTorqueOwner = (Remove-JSInterceptorMapTorquePadding "v8\v8\src\objects\map.tq") -or $patchedTorqueOwner
+        if (-not $patchedTorqueOwner) {
+          Write-Error "Critical: Could not find JSInterceptorMap Torque definition."
+          exit 1
+        }
+        $patchedCppOwner = $false
+        $patchedCppOwner = (Remove-JSInterceptorMapCppPadding "v8\v8\src\objects\js-interceptor-map.h") -or $patchedCppOwner
+        $patchedCppOwner = (Remove-JSInterceptorMapCppPadding "v8\v8\src\objects\map.h") -or $patchedCppOwner
+        if (-not $patchedCppOwner) {
+          Write-Error "Critical: Could not find JSInterceptorMap C++ definition."
+          exit 1
+        }
+        # Final diagnostics.
+        Write-Output "Relevant map.tq context:"
+        Select-String -Path $mapTqPath -Pattern 'ExtendedMap|bit_field_ex|extended_padding' -Context 3,3 | Out-String | Write-Output
+        Write-Output "Relevant map.h context:"
+        Select-String -Path $mapHPath -Pattern 'ExtendedMap|bit_field_ex_|extended_padding_' -Context 3,3 | Out-String | Write-Output
+        Write-Output "Success: Applied ExtendedMap / JSInterceptorMap MSVC ABI layout patch."
