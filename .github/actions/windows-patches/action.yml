@@ -266,7 +266,7 @@ runs:
           -message "Critical: Could not find ExtendedMap in map.h. Source layout may have changed."
         $extendedMapCppHasPadding = [regex]::IsMatch(
           $mapH,
-          'class ExtendedMap : public Map \{[\s\S]*?uint8_t extended_padding_\[kTaggedSize - 1\];'
+          'class ExtendedMap : public Map \{[\s\S]*?extended_map_padding_4_byte_a_;[\s\S]*?extended_map_padding_4_byte_b_;[\s\S]*?extended_map_padding_8_byte_a_;[\s\S]*?extended_map_padding_8_byte_b_;[\s\S]*?extended_map_padding_8_byte_c_;'
         )
         if ($extendedMapCppHasPadding) {
           Write-Output "Success: ExtendedMap C++ padding is already present."
@@ -277,7 +277,14 @@ runs:
           $extendedMapCppReplacement =
             '$1' +
             '// MSVC ABI: make the abstract base own its rounded tail padding.' + "`n" +
-            'uint8_t extended_padding_[kTaggedSize - 1];' + "`n"
+            '#if TAGGED_SIZE_8_BYTES' + "`n" +
+            'uint8_t extended_map_padding_8_byte_a_;' + "`n" +
+            'uint16_t extended_map_padding_8_byte_b_;' + "`n" +
+            'uint32_t extended_map_padding_8_byte_c_;' + "`n" +
+            '#else' + "`n" +
+            'uint8_t extended_map_padding_4_byte_a_;' + "`n" +
+            'uint16_t extended_map_padding_4_byte_b_;' + "`n" +
+            '#endif' + "`n"
           $regex = [regex]::new($extendedMapCppPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
           if (-not $regex.IsMatch($mapH)) {
             $context = Select-String -Path $mapHPath -Pattern 'ExtendedMap|bit_field_ex_|extended_padding_' -Context 4,4 | Out-String
