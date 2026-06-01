@@ -311,7 +311,7 @@ runs:
               'extern class JSInterceptorMap extends ExtendedMap \{[\s\S]*?\}'
             ).Value
             if ($classBlock -match 'extended_padding\[') {
-              Write-Output "Diagnostic JSInterceptorMap Torque block from $path:"
+              Write-Output "Diagnostic JSInterceptorMap Torque block from ${path}:"
               Write-Output $classBlock
               Write-Error "Critical: Found JSInterceptorMap padding, but could not remove it."
               exit 1
@@ -343,7 +343,7 @@ runs:
               'V8_OBJECT class JSInterceptorMap : public ExtendedMap \{[\s\S]*?\} V8_OBJECT_END;'
             ).Value
             if ($classBlock -match 'extended_padding_') {
-              Write-Output "Diagnostic JSInterceptorMap C++ block from $path:"
+              Write-Output "Diagnostic JSInterceptorMap C++ block from ${path}:"
               Write-Output $classBlock
               Write-Error "Critical: Found JSInterceptorMap padding, but could not remove it."
               exit 1
