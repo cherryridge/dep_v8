@@ -266,7 +266,7 @@ runs:
           -message "Critical: Could not find ExtendedMap in map.h. Source layout may have changed."
         $extendedMapCppHasPadding = [regex]::IsMatch(
           $mapH,
-          'class ExtendedMap : public Map \{[\s\S]*?extended_map_padding_4_byte_a_;[\s\S]*?extended_map_padding_4_byte_b_;[\s\S]*?extended_map_padding_8_byte_a_;[\s\S]*?extended_map_padding_8_byte_b_;[\s\S]*?extended_map_padding_8_byte_c_;'
+          'class ExtendedMap : public Map \{[\s\S]*?extended_map_padding_8_byte_a_;[\s\S]*?extended_map_padding_8_byte_b_;[\s\S]*?extended_map_padding_8_byte_c_;[\s\S]*?extended_map_padding_4_byte_a_;[\s\S]*?extended_map_padding_4_byte_b_;'
         )
         if ($extendedMapCppHasPadding) {
           Write-Output "Success: ExtendedMap C++ padding is already present."
@@ -378,17 +378,42 @@ runs:
           Write-Error "Critical: Could not find JSInterceptorMap C++ definition."
           exit 1
         }
-        # 5. JSInterceptorMap::Initialize used to clear the padding field while it
-        # lived directly in JSInterceptorMap. After moving that padding into
-        # ExtendedMap, clear the new explicit padding fields instead.
-        $mapInlPath = "v8\v8\src\objects\map-inl.h"
-        if (-not (Test-Path $mapInlPath)) {
-          Write-Error "Critical: Could not find $mapInlPath"
+        # 5. JSInterceptorMap clears the padding field while it lives directly
+        # in JSInterceptorMap. After moving that padding into ExtendedMap, clear
+        # the new explicit padding fields instead.
+        $paddingInlPath = $null
+        $paddingInl = $null
+        $paddingInlCandidates = @(
+          "v8\v8\src\objects\js-interceptor-map-inl.h",
+          "v8\v8\src\objects\map-inl.h"
+        )
+        foreach ($candidatePath in $paddingInlCandidates) {
+          if (-not (Test-Path $candidatePath)) {
+            continue
+          }
+          $candidateContent = Normalize-Newlines (Get-Content -Path $candidatePath -Raw)
+          if (
+            [regex]::IsMatch($candidateContent, 'JSInterceptorMap::') -and
+            [regex]::IsMatch($candidateContent, 'extended_(?:map_)?padding_')
+          ) {
+            $paddingInlPath = $candidatePath
+            $paddingInl = $candidateContent
+            break
+          }
+        }
+        if ($null -eq $paddingInlPath) {
+          foreach ($candidatePath in $paddingInlCandidates) {
+            if (Test-Path $candidatePath) {
+              $context = Select-String -Path $candidatePath -Pattern 'JSInterceptorMap|extended_padding_|extended_map_padding_|memset' -Context 8,8 | Out-String
+              Write-Output "Diagnostic context from ${candidatePath}:"
+              Write-Output $context
+            }
+          }
+          Write-Error "Critical: Could not find the JSInterceptorMap padding clear implementation."
           exit 1
         }
-        $mapInl = Normalize-Newlines (Get-Content -Path $mapInlPath -Raw)
-        if ([regex]::IsMatch($mapInl, 'extended_map_padding_4_byte_a_\s*=\s*0;')) {
-          Write-Output "Success: JSInterceptorMap::Initialize padding clear is already patched."
+        if ([regex]::IsMatch($paddingInl, 'extended_map_padding_4_byte_a_\s*=\s*0;')) {
+          Write-Output "Success: JSInterceptorMap padding clear is already patched in $paddingInlPath"
         } else {
           $oldPaddingClearPattern = 'memset\(extended_padding_,\s*0,\s*sizeof\(extended_padding_\)\);'
           $newPaddingClear =
@@ -401,24 +426,24 @@ runs:
             '  extended_map_padding_4_byte_b_ = 0;' + "`n" +
             '#endif'
           $regex = [regex]::new($oldPaddingClearPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
-          if (-not $regex.IsMatch($mapInl)) {
-            $context = Select-String -Path $mapInlPath -Pattern 'JSInterceptorMap::Initialize|extended_padding_|extended_map_padding_|memset' -Context 8,8 | Out-String
-            Write-Output "Diagnostic context from map-inl.h:"
+          if (-not $regex.IsMatch($paddingInl)) {
+            $context = Select-String -Path $paddingInlPath -Pattern 'JSInterceptorMap|extended_padding_|extended_map_padding_|memset' -Context 8,8 | Out-String
+            Write-Output "Diagnostic context from ${paddingInlPath}:"
             Write-Output $context
-            Write-Error "Critical: Could not patch JSInterceptorMap::Initialize padding clear in map-inl.h."
+            Write-Error "Critical: Could not patch the JSInterceptorMap padding clear implementation."
             exit 1
           }
-          $newMapInl = $regex.Replace($mapInl, $newPaddingClear, 1)
-          Write-NormalizedFile -path $mapInlPath -text $newMapInl
-          $verifyMapInl = Normalize-Newlines (Get-Content -Path $mapInlPath -Raw)
-          if (-not [regex]::IsMatch($verifyMapInl, 'extended_map_padding_4_byte_a_\s*=\s*0;')) {
-            $context = Select-String -Path $mapInlPath -Pattern 'JSInterceptorMap::Initialize|extended_padding_|extended_map_padding_|memset' -Context 8,8 | Out-String
-            Write-Output "Diagnostic context from map-inl.h after attempted patch:"
+          $newPaddingInl = $regex.Replace($paddingInl, $newPaddingClear, 1)
+          Write-NormalizedFile -path $paddingInlPath -text $newPaddingInl
+          $verifyPaddingInl = Normalize-Newlines (Get-Content -Path $paddingInlPath -Raw)
+          if (-not [regex]::IsMatch($verifyPaddingInl, 'extended_map_padding_4_byte_a_\s*=\s*0;')) {
+            $context = Select-String -Path $paddingInlPath -Pattern 'JSInterceptorMap|extended_padding_|extended_map_padding_|memset' -Context 8,8 | Out-String
+            Write-Output "Diagnostic context from ${paddingInlPath} after attempted patch:"
             Write-Output $context
-            Write-Error "Critical: Verification failed after patching JSInterceptorMap::Initialize padding clear."
+            Write-Error "Critical: Verification failed after patching the JSInterceptorMap padding clear implementation."
             exit 1
           }
-          Write-Output "Success: Patched JSInterceptorMap::Initialize padding clear in map-inl.h."
+          Write-Output "Success: Patched JSInterceptorMap padding clear in $paddingInlPath"
         }
         # Final diagnostics.
         Write-Output "Relevant map.tq context:"
