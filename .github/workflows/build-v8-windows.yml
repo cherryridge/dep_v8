@@ -29,7 +29,7 @@ on:
 
 jobs:
   x64-debug:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
     - name: Checkout This Repo
       uses: actions/checkout@v6.0.2
@@ -90,7 +90,7 @@ jobs:
         retention-days: 7
 
   x64-release:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
     - name: Checkout This Repo
       uses: actions/checkout@v6.0.2
@@ -151,7 +151,7 @@ jobs:
         retention-days: 7
 
   arm64-debug:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
     - name: Checkout This Repo
       uses: actions/checkout@v6.0.2
@@ -205,7 +205,7 @@ jobs:
         retention-days: 7
 
   arm64-release:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
     - name: Checkout This Repo
       uses: actions/checkout@v6.0.2
