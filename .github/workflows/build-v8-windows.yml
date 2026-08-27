@@ -47,6 +47,9 @@ jobs:
       with:
         commit: ${{inputs.commit}}
 
+    - name: Set Up V8 Windows SDK
+      uses: ./.github/actions/setup-v8-windows-sdk
+
     - name: Apply Patches
       uses: ./.github/actions/windows-patches
 
@@ -120,6 +123,9 @@ jobs:
       uses: ./.github/actions/fetch-v8
       with:
         commit: ${{inputs.commit}}
+
+    - name: Set Up V8 Windows SDK
+      uses: ./.github/actions/setup-v8-windows-sdk
 
     - name: Apply Patches
       uses: ./.github/actions/windows-patches
@@ -195,14 +201,11 @@ jobs:
       with:
         commit: ${{inputs.commit}}
 
+    - name: Set Up V8 Windows SDK
+      uses: ./.github/actions/setup-v8-windows-sdk
+
     - name: Apply Patches
       uses: ./.github/actions/windows-patches
-
-    - name: Install ARM64 Debugger Tools
-      uses: ChristopheLav/windows-sdk-install@v1
-      with:
-        version-sdk: 26100
-        features: "OptionId.WindowsDesktopDebuggers"
 
     - name: Build Windows arm64 Debug
       shell: pwsh
@@ -262,14 +265,11 @@ jobs:
       with:
         commit: ${{inputs.commit}}
 
+    - name: Set Up V8 Windows SDK
+      uses: ./.github/actions/setup-v8-windows-sdk
+
     - name: Apply Patches
       uses: ./.github/actions/windows-patches
-
-    - name: Install ARM64 Debugger Tools
-      uses: ChristopheLav/windows-sdk-install@v1
-      with:
-        version-sdk: 26100
-        features: "OptionId.WindowsDesktopDebuggers"
 
     - name: Build Windows arm64 Release
       shell: pwsh

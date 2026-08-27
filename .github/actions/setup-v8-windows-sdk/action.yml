@@ -1,0 +1,117 @@
+name: Set Up V8 Windows SDK
+description: Installs the Windows SDK version required by V8
+
+runs:
+  using: composite
+  steps:
+    - name: Install V8-pinned Windows SDK
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $setupToolchainPath = "v8\v8\build\toolchain\win\setup_toolchain.py"
+        if (-not (Test-Path $setupToolchainPath)) {
+          Write-Error "Critical: Could not find $setupToolchainPath"
+          exit 1
+        }
+
+        $setupToolchain = Get-Content -Path $setupToolchainPath -Raw
+        $sdkVersionMatch = [regex]::Match(
+          $setupToolchain,
+          '(?m)^SDK_VERSION\s*=\s*[''\"](?<version>10\.\d+\.\d+\.\d+)[''\"]'
+        )
+        if (-not $sdkVersionMatch.Success) {
+          $context = Select-String -Path $setupToolchainPath -Pattern 'SDK_VERSION' -Context 3,3 | Out-String
+          Write-Output "Diagnostic context from ${setupToolchainPath}:"
+          Write-Output $context
+          Write-Error "Critical: Could not determine V8's required Windows SDK version."
+          exit 1
+        }
+
+        $sdkVersion = $sdkVersionMatch.Groups['version'].Value
+        $sdkRoot = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10"
+        $requiredPaths = @(
+          (Join-Path $sdkRoot "Include\$sdkVersion\shared"),
+          (Join-Path $sdkRoot "Include\$sdkVersion\ucrt"),
+          (Join-Path $sdkRoot "Include\$sdkVersion\um"),
+          (Join-Path $sdkRoot "Include\$sdkVersion\winrt"),
+          (Join-Path $sdkRoot "Include\$sdkVersion\cppwinrt"),
+          (Join-Path $sdkRoot "Lib\$sdkVersion\ucrt\x86"),
+          (Join-Path $sdkRoot "Lib\$sdkVersion\ucrt\x64"),
+          (Join-Path $sdkRoot "Lib\$sdkVersion\ucrt\arm64"),
+          (Join-Path $sdkRoot "Lib\$sdkVersion\um\x86"),
+          (Join-Path $sdkRoot "Lib\$sdkVersion\um\x64"),
+          (Join-Path $sdkRoot "Lib\$sdkVersion\um\arm64"),
+          (Join-Path $sdkRoot "References\$sdkVersion"),
+          (Join-Path $sdkRoot "UnionMetadata\$sdkVersion"),
+          (Join-Path $sdkRoot "bin\$sdkVersion\x86"),
+          (Join-Path $sdkRoot "bin\$sdkVersion\x64"),
+          (Join-Path $sdkRoot "bin\$sdkVersion\arm64"),
+          (Join-Path $sdkRoot "Debuggers\x64\dbghelp.dll"),
+          (Join-Path $sdkRoot "Debuggers\arm64\dbghelp.dll")
+        )
+        $missingPaths = @($requiredPaths | Where-Object { -not (Test-Path $_) })
+        if ($missingPaths.Count -eq 0) {
+          Write-Output "Success: Windows SDK $sdkVersion and required debugger tools are already installed."
+          exit 0
+        }
+
+        $supportedSdkVersion = "10.0.28000.0"
+        if ($sdkVersion -ne $supportedSdkVersion) {
+          Write-Output "Missing Windows SDK paths:"
+          $missingPaths | Write-Output
+          Write-Error "Critical: Windows SDK $sdkVersion is not installed and has no installer mapping in this action."
+          exit 1
+        }
+
+        # Chromium upgraded to the June 2026 servicing release when it pinned
+        # the 10.0.28000.0 SDK directory.
+        $installerVersion = "10.0.28000.2270"
+        $installerUrl = "https://go.microsoft.com/fwlink/?linkid=2370315"
+        $installerPath = Join-Path $env:RUNNER_TEMP "winsdksetup-$installerVersion.exe"
+        $installerLogPath = Join-Path $env:RUNNER_TEMP "winsdksetup-$installerVersion.log"
+
+        Write-Output "Installing Windows SDK $installerVersion for V8 (directory version $sdkVersion)..."
+        Invoke-WebRequest -UseBasicParsing -Uri $installerUrl -OutFile $installerPath
+        $installerSignature = Get-AuthenticodeSignature -FilePath $installerPath
+        if (
+          $installerSignature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or
+          $installerSignature.SignerCertificate.Subject -notmatch 'Microsoft Corporation'
+        ) {
+          Write-Error "Critical: Downloaded Windows SDK installer does not have a valid Microsoft signature."
+          exit 1
+        }
+        Unblock-File -Path $installerPath
+        $installerArguments = @(
+          '/features',
+          'OptionId.DesktopCPPx86',
+          'OptionId.DesktopCPPx64',
+          'OptionId.DesktopCPParm64',
+          'OptionId.WindowsDesktopDebuggers',
+          '/quiet',
+          '/norestart',
+          '/log',
+          $installerLogPath
+        )
+        $installer = Start-Process -FilePath $installerPath -ArgumentList $installerArguments -Wait -PassThru
+        if ($installer.ExitCode -notin @(0, 3010)) {
+          if (Test-Path $installerLogPath) {
+            Write-Output "Windows SDK installer log:"
+            Get-Content -Path $installerLogPath -Tail 200 | Write-Output
+          }
+          Write-Error "Critical: Windows SDK installer exited with code $($installer.ExitCode)."
+          exit 1
+        }
+
+        $missingPaths = @($requiredPaths | Where-Object { -not (Test-Path $_) })
+        if ($missingPaths.Count -ne 0) {
+          Write-Output "Missing Windows SDK paths after installation:"
+          $missingPaths | Write-Output
+          if (Test-Path $installerLogPath) {
+            Write-Output "Windows SDK installer log:"
+            Get-Content -Path $installerLogPath -Tail 200 | Write-Output
+          }
+          Write-Error "Critical: Windows SDK $installerVersion installation verification failed."
+          exit 1
+        }
+
+        Write-Output "Success: Installed Windows SDK $installerVersion for V8."
