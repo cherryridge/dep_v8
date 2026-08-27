@@ -297,7 +297,7 @@ runs:
           Write-NormalizedFile -path $mapHPath -text $newMapH
           Write-Output "Success: Added ExtendedMap C++ tail padding."
         }
-        function Remove-JSInterceptorMapTorquePadding {
+        function Update-JSInterceptorMapTorquePadding {
           param([string]$path)
           if (-not (Test-Path $path)) {
             return $false
@@ -306,31 +306,52 @@ runs:
           if (-not [regex]::IsMatch($text, 'extern class JSInterceptorMap extends ExtendedMap')) {
             return $false
           }
-          $pattern =
-            '(extern class JSInterceptorMap extends ExtendedMap \{\s*)' +
+          $classBlock = [regex]::Match(
+            $text,
+            'extern class JSInterceptorMap extends ExtendedMap \{[\s\S]*?\}'
+          ).Value
+          $hasFlags = [regex]::IsMatch($classBlock, 'flags:\s*uint8;')
+          $legacyPaddingPattern =
             '@ifnot\(TAGGED_SIZE_8_BYTES\)\s+extended_padding\[3\]: uint8;\s*' +
-            '@if\(TAGGED_SIZE_8_BYTES\)\s+extended_padding\[7\]: uint8;\s*'
-          $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
-          if ($regex.IsMatch($text)) {
-            $newText = $regex.Replace($text, '$1', 1)
-            Write-NormalizedFile -path $path -text $newText
-            Write-Output "Success: Removed JSInterceptorMap Torque padding from $path"
+            '@if\(TAGGED_SIZE_8_BYTES\)\s+extended_padding\[7\]: uint8;'
+          if ($hasFlags) {
+            $newPaddingPattern =
+              '(@ifnot\(TAGGED_SIZE_8_BYTES\)\s+extended_padding\[)2(\]: uint8;\s*' +
+              '@if\(TAGGED_SIZE_8_BYTES\)\s+extended_padding\[)6(\]: uint8;)'
+            $regex = [regex]::new($newPaddingPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+            if ($regex.IsMatch($classBlock)) {
+              $newText = $regex.Replace($text, '${1}3${2}7${3}', 1)
+              Write-NormalizedFile -path $path -text $newText
+              Write-Output "Success: Expanded JSInterceptorMap Torque padding after flags in $path"
+            } elseif ([regex]::IsMatch($classBlock, $legacyPaddingPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+              Write-Output "Success: JSInterceptorMap Torque padding after flags is already patched in $path"
+            } else {
+              Write-Output "Diagnostic JSInterceptorMap Torque block from ${path}:"
+              Write-Output $classBlock
+              Write-Error "Critical: Found JSInterceptorMap flags, but could not update its padding."
+              exit 1
+            }
           } else {
-            $classBlock = [regex]::Match(
-              $text,
-              'extern class JSInterceptorMap extends ExtendedMap \{[\s\S]*?\}'
-            ).Value
-            if ($classBlock -match 'extended_padding\[') {
+            $legacyPaddingWithClassPattern =
+              '(extern class JSInterceptorMap extends ExtendedMap \{\s*)' +
+              $legacyPaddingPattern + '\s*'
+            $regex = [regex]::new($legacyPaddingWithClassPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+            if ($regex.IsMatch($text)) {
+              $newText = $regex.Replace($text, '$1', 1)
+              Write-NormalizedFile -path $path -text $newText
+              Write-Output "Success: Removed legacy JSInterceptorMap Torque padding from $path"
+            } elseif ($classBlock -match 'extended_padding\[') {
               Write-Output "Diagnostic JSInterceptorMap Torque block from ${path}:"
               Write-Output $classBlock
               Write-Error "Critical: Found JSInterceptorMap padding, but could not remove it."
               exit 1
+            } else {
+              Write-Output "Success: Legacy JSInterceptorMap Torque padding is already absent in $path"
             }
-            Write-Output "Success: JSInterceptorMap Torque padding is already absent in $path"
           }
           return $true
         }
-        function Remove-JSInterceptorMapCppPadding {
+        function Update-JSInterceptorMapCppPadding {
           param([string]$path)
           if (-not (Test-Path $path)) {
             return $false
@@ -339,48 +360,85 @@ runs:
           if (-not [regex]::IsMatch($text, 'class JSInterceptorMap : public ExtendedMap')) {
             return $false
           }
-          $pattern =
-            '(V8_OBJECT class JSInterceptorMap : public ExtendedMap \{[\s\S]*?)' +
-            '\s*uint8_t extended_padding_\[kTaggedSize - 1\];\s*'
-          $regex = [regex]::new($pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
-          if ($regex.IsMatch($text)) {
-            $newText = $regex.Replace($text, '$1', 1)
-            Write-NormalizedFile -path $path -text $newText
-            Write-Output "Success: Removed JSInterceptorMap C++ padding from $path"
+          $classBlock = [regex]::Match(
+            $text,
+            'V8_OBJECT class JSInterceptorMap : public ExtendedMap \{[\s\S]*?\} V8_OBJECT_END;'
+          ).Value
+          $hasFlags = [regex]::IsMatch($classBlock, 'uint8_t\s+flags_;')
+          $legacyPaddingPattern = 'uint8_t extended_padding_\[kTaggedSize - 1\];'
+          if ($hasFlags) {
+            $newPaddingPattern = 'uint8_t extended_padding_\[kTaggedSize - 2\];'
+            $regex = [regex]::new($newPaddingPattern)
+            if ($regex.IsMatch($classBlock)) {
+              $newText = $regex.Replace($text, 'uint8_t extended_padding_[kTaggedSize - 1];', 1)
+              Write-NormalizedFile -path $path -text $newText
+              Write-Output "Success: Expanded JSInterceptorMap C++ padding after flags in $path"
+            } elseif ([regex]::IsMatch($classBlock, $legacyPaddingPattern)) {
+              Write-Output "Success: JSInterceptorMap C++ padding after flags is already patched in $path"
+            } else {
+              Write-Output "Diagnostic JSInterceptorMap C++ block from ${path}:"
+              Write-Output $classBlock
+              Write-Error "Critical: Found JSInterceptorMap flags, but could not update its padding."
+              exit 1
+            }
           } else {
-            $classBlock = [regex]::Match(
-              $text,
-              'V8_OBJECT class JSInterceptorMap : public ExtendedMap \{[\s\S]*?\} V8_OBJECT_END;'
-            ).Value
-            if ($classBlock -match 'extended_padding_') {
+            $legacyPaddingWithClassPattern =
+              '(V8_OBJECT class JSInterceptorMap : public ExtendedMap \{[\s\S]*?)' +
+              '\s*' + $legacyPaddingPattern + '\s*'
+            $regex = [regex]::new($legacyPaddingWithClassPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+            if ($regex.IsMatch($text)) {
+              $newText = $regex.Replace($text, '$1', 1)
+              Write-NormalizedFile -path $path -text $newText
+              Write-Output "Success: Removed legacy JSInterceptorMap C++ padding from $path"
+            } elseif ($classBlock -match 'extended_padding_') {
               Write-Output "Diagnostic JSInterceptorMap C++ block from ${path}:"
               Write-Output $classBlock
               Write-Error "Critical: Found JSInterceptorMap padding, but could not remove it."
               exit 1
+            } else {
+              Write-Output "Success: Legacy JSInterceptorMap C++ padding is already absent in $path"
             }
-            Write-Output "Success: JSInterceptorMap C++ padding is already absent in $path"
           }
           return $true
         }
         # Newer V8 has JSInterceptorMap split into its own files.
         # Older V8 may still keep it in map.tq / map.h.
         $patchedTorqueOwner = $false
-        $patchedTorqueOwner = (Remove-JSInterceptorMapTorquePadding "v8\v8\src\objects\js-interceptor-map.tq") -or $patchedTorqueOwner
-        $patchedTorqueOwner = (Remove-JSInterceptorMapTorquePadding "v8\v8\src\objects\map.tq") -or $patchedTorqueOwner
+        $patchedTorqueOwner = (Update-JSInterceptorMapTorquePadding "v8\v8\src\objects\js-interceptor-map.tq") -or $patchedTorqueOwner
+        $patchedTorqueOwner = (Update-JSInterceptorMapTorquePadding "v8\v8\src\objects\map.tq") -or $patchedTorqueOwner
         if (-not $patchedTorqueOwner) {
           Write-Error "Critical: Could not find JSInterceptorMap Torque definition."
           exit 1
         }
         $patchedCppOwner = $false
-        $patchedCppOwner = (Remove-JSInterceptorMapCppPadding "v8\v8\src\objects\js-interceptor-map.h") -or $patchedCppOwner
-        $patchedCppOwner = (Remove-JSInterceptorMapCppPadding "v8\v8\src\objects\map.h") -or $patchedCppOwner
+        $patchedCppOwner = (Update-JSInterceptorMapCppPadding "v8\v8\src\objects\js-interceptor-map.h") -or $patchedCppOwner
+        $patchedCppOwner = (Update-JSInterceptorMapCppPadding "v8\v8\src\objects\map.h") -or $patchedCppOwner
         if (-not $patchedCppOwner) {
           Write-Error "Critical: Could not find JSInterceptorMap C++ definition."
           exit 1
         }
-        # 5. JSInterceptorMap clears the padding field while it lives directly
-        # in JSInterceptorMap. After moving that padding into ExtendedMap, clear
-        # the new explicit padding fields instead.
+        # 5. Clear ExtendedMap's new explicit padding. Newer JSInterceptorMap
+        # versions also have a flags field, so they retain their own padding and
+        # must continue to clear it as well.
+        $jsInterceptorMapHasOwnPadding = $false
+        $paddingHeaderCandidates = @(
+          "v8\v8\src\objects\js-interceptor-map.h",
+          "v8\v8\src\objects\map.h"
+        )
+        foreach ($candidatePath in $paddingHeaderCandidates) {
+          if (-not (Test-Path $candidatePath)) {
+            continue
+          }
+          $candidateContent = Normalize-Newlines (Get-Content -Path $candidatePath -Raw)
+          $candidateClassBlock = [regex]::Match(
+            $candidateContent,
+            'V8_OBJECT class JSInterceptorMap : public ExtendedMap \{[\s\S]*?\} V8_OBJECT_END;'
+          ).Value
+          if ($candidateClassBlock) {
+            $jsInterceptorMapHasOwnPadding = $candidateClassBlock -match 'extended_padding_'
+            break
+          }
+        }
         $paddingInlPath = $null
         $paddingInl = $null
         $paddingInlCandidates = @(
@@ -412,8 +470,25 @@ runs:
           Write-Error "Critical: Could not find the JSInterceptorMap padding clear implementation."
           exit 1
         }
-        if ([regex]::IsMatch($paddingInl, 'extended_map_padding_4_byte_a_\s*=\s*0;')) {
+        $hasExtendedMapPaddingClear = [regex]::IsMatch(
+          $paddingInl,
+          'extended_map_padding_4_byte_a_\s*=\s*0;'
+        )
+        $hasJSInterceptorMapPaddingClear = [regex]::IsMatch(
+          $paddingInl,
+          'memset\(extended_padding_,\s*0,\s*sizeof\(extended_padding_\)\);'
+        )
+        if (
+          $hasExtendedMapPaddingClear -and
+          ($hasJSInterceptorMapPaddingClear -eq $jsInterceptorMapHasOwnPadding)
+        ) {
           Write-Output "Success: JSInterceptorMap padding clear is already patched in $paddingInlPath"
+        } elseif ($hasExtendedMapPaddingClear) {
+          $context = Select-String -Path $paddingInlPath -Pattern 'JSInterceptorMap|extended_padding_|extended_map_padding_|memset' -Context 8,8 | Out-String
+          Write-Output "Diagnostic context from ${paddingInlPath}:"
+          Write-Output $context
+          Write-Error "Critical: JSInterceptorMap padding clear does not match its patched C++ layout."
+          exit 1
         } else {
           $oldPaddingClearPattern = 'memset\(extended_padding_,\s*0,\s*sizeof\(extended_padding_\)\);'
           $newPaddingClear =
@@ -425,6 +500,9 @@ runs:
             '  extended_map_padding_4_byte_a_ = 0;' + "`n" +
             '  extended_map_padding_4_byte_b_ = 0;' + "`n" +
             '#endif'
+          if ($jsInterceptorMapHasOwnPadding) {
+            $newPaddingClear += "`n" + '  memset(extended_padding_, 0, sizeof(extended_padding_));'
+          }
           $regex = [regex]::new($oldPaddingClearPattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
           if (-not $regex.IsMatch($paddingInl)) {
             $context = Select-String -Path $paddingInlPath -Pattern 'JSInterceptorMap|extended_padding_|extended_map_padding_|memset' -Context 8,8 | Out-String
