@@ -529,3 +529,51 @@ runs:
         Write-Output "Relevant map.h context:"
         Select-String -Path $mapHPath -Pattern 'ExtendedMap|bit_field_ex_|extended_padding_|extended_map_padding_' -Context 3,3 | Out-String | Write-Output
         Write-Output "Success: Applied ExtendedMap / JSInterceptorMap MSVC ABI layout patch."
+
+    - name: Normalize vcvarsall Windows SDK paths
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = "Stop"
+        $setupToolchainPath = "v8\v8\build\toolchain\win\setup_toolchain.py"
+        if (-not (Test-Path $setupToolchainPath)) {
+          Write-Error "Critical: Could not find $setupToolchainPath"
+          exit 1
+        }
+        $setupToolchain = (Get-Content -Path $setupToolchainPath -Raw) -replace "`r`n", "`n"
+        $patchMarker = '# dep_v8: normalize vcvarsall Windows Kits paths to SDK_VERSION.'
+        if ($setupToolchain.Contains($patchMarker)) {
+          Write-Output "Success: vcvarsall Windows SDK path normalization is already present."
+          exit 0
+        }
+        $pattern =
+          '(    variables = _LoadEnvFromBat\(args\)\n)' +
+          '(  return _ExtractImportantEnvironment\(variables\))'
+        $regex = [regex]::new($pattern)
+        if ($regex.Matches($setupToolchain).Count -ne 1) {
+          $context = Select-String -Path $setupToolchainPath -Pattern '_LoadEnvFromBat|_ExtractImportantEnvironment|SDK_VERSION' -Context 5,5 | Out-String
+          Write-Output "Diagnostic context from ${setupToolchainPath}:"
+          Write-Output $context
+          Write-Error "Critical: Could not find the expected vcvarsall environment extraction path."
+          exit 1
+        }
+        $replacement = @'
+        $1    # dep_v8: normalize vcvarsall Windows Kits paths to SDK_VERSION.
+            pinned_sdk_um = os.path.join(sdk_dir, 'Include', SDK_VERSION, 'um')
+            if not os.path.isdir(pinned_sdk_um):
+              raise Exception(
+                  'Pinned Windows SDK directory "%s" does not exist.' % pinned_sdk_um)
+            windows_kits_version = re.compile(
+                r'(?i)(Windows Kits[\\/]+10[\\/]+(?:bin|Include|Lib|References|'
+                r'UnionMetadata)[\\/]+)10\.0\.\d+\.\d+')
+            variables = windows_kits_version.sub(
+                lambda match: match.group(1) + SDK_VERSION, variables)
+        $2
+        '@
+        $newSetupToolchain = $regex.Replace($setupToolchain, $replacement, 1)
+        Set-Content -Path $setupToolchainPath -Value $newSetupToolchain -NoNewline
+        $verifySetupToolchain = Get-Content -Path $setupToolchainPath -Raw
+        if (-not $verifySetupToolchain.Contains($patchMarker)) {
+          Write-Error "Critical: Verification failed after patching $setupToolchainPath"
+          exit 1
+        }
+        Write-Output "Success: Normalized vcvarsall Windows SDK paths to V8's pinned SDK version."
