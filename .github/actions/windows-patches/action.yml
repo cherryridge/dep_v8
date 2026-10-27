@@ -235,7 +235,7 @@ runs:
           Write-Output "Success: ExtendedMap Torque padding is already present."
         } else {
           $extendedMapTqPattern =
-            '(extern class ExtendedMap extends Map \{\s*bit_field_ex: ExtendedMapBitFields;\s*)' +
+            '(extern class ExtendedMap extends Map \{\s*bit_field_ex: ExtendedMap(?:BitFields|BitsEx);\s*)' +
             '(// Leaves kTaggedSize-1 unused bytes, they will be used by subclasses\.\s*)?\}'
           $extendedMapTqReplacement =
             '$1' +
@@ -272,7 +272,7 @@ runs:
           Write-Output "Success: ExtendedMap C++ padding is already present."
         } else {
           $extendedMapCppPattern =
-            '(std::atomic<uint8_t> bit_field_ex_;\s*)' +
+            '(std::atomic<(?:uint8_t|BitsEx)> bit_field_ex_;\s*)' +
             '(// Leaves kTaggedSize-1 unused bytes, they will be used by subclasses\.\s*)'
           $extendedMapCppReplacement =
             '$1' +
