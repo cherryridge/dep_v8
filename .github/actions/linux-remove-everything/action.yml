@@ -11,21 +11,32 @@ runs:
         df -h /
         sudo apt-get update
 
-        # Select optional software from this runner's installed package database.
-        candidates=$(dpkg-query -W -f='${Package}\t${Status}\t${Essential}\t${Protected}\t${binary:Package}\n' |
-          awk -F '\t' '
-            $2 != "install ok installed" || $3 == "yes" || $4 == "yes" { next }
-            $1 ~ /^(azure-cli|google-cloud-cli|google-chrome-stable|microsoft-edge-stable|firefox)$/ ||
-            $1 ~ /^(ant|ant-optional|temurin-[0-9]+-jdk)$/ ||
-            $1 ~ /^(buildah|podman|containerd[.]io|docker-ce|docker-ce-cli)$/ ||
-            $1 ~ /^php[0-9]+[.][0-9]+(-[a-z0-9-]+)?$/ ||
-            $1 ~ /^postgresql-(client-)?[0-9]+(-jit)?$/ ||
-            $1 ~ /^mysql-(client|server)(-core)?$/ { print $5 }
-          ')
-        if [[ -n "$candidates" ]]; then
-          mapfile -t packages <<< "$candidates"
-          sudo apt-get remove -y -- "${packages[@]}"
-        fi
+        installed=$(dpkg-query -W -f='${Package}\t${Status}\t${Essential}\t${Protected}\t${binary:Package}\n' |
+          awk -F '\t' '$2 == "install ok installed" && $3 != "yes" && $4 != "yes" { print $1 "\t" $5 }')
+
+        remove_optional_group() {
+          local pattern=$1
+          local -a packages
+          mapfile -t packages < <(awk -F '\t' -v pattern="$pattern" '$1 ~ pattern { print $2 }' <<< "$installed")
+          if (( ${#packages[@]} == 0 )); then
+            return 0
+          fi
+
+          # dpkg checks the exact group without removing dependents outside it.
+          if sudo dpkg --no-act --remove "${packages[@]}"; then
+            sudo dpkg --remove "${packages[@]}"
+          else
+            echo "::warning::Keeping optional packages after failed removal check: ${packages[*]}"
+          fi
+        }
+
+        remove_optional_group '^(azure-cli|google-cloud-cli)$'
+        remove_optional_group '^(google-chrome-stable|microsoft-edge-stable|firefox)$'
+        remove_optional_group '^(ant|ant-optional|temurin-[0-9]+-jdk)$'
+        remove_optional_group '^(buildah|podman|containerd[.]io|docker-ce|docker-ce-cli)$'
+        remove_optional_group '^(php-pear|php[0-9]+[.][0-9]+(-[a-z0-9-]+)?)$'
+        remove_optional_group '^postgresql-(client-)?[0-9]+(-jit)?$'
+        remove_optional_group '^mysql-(client|server)(-core)?$'
 
         # Large preinstalled SDKs that the V8 build does not use.
         sudo rm -rf -- /usr/local/lib/android /usr/local/.ghcup /usr/local/share/vcpkg \
