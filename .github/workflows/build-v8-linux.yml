@@ -84,12 +84,9 @@ jobs:
         7z a v8_linux_x64_debug.7z ./v8/v8/out/x64.debug/obj/libv8_monolith.a ./temp/include VERSION.txt
 
     - name: Upload Archive
-      uses: actions/upload-artifact@v7
+      uses: ./.github/actions/upload-archive
       with:
         name: v8_linux_x64_debug
-        path: |
-          *.7z
-        retention-days: 7
 
   x64-release:
     runs-on: ubuntu-latest
@@ -146,12 +143,9 @@ jobs:
         7z a v8_linux_x64_release.7z ./v8/v8/out/x64.release/obj/libv8_monolith.a ./temp/include VERSION.txt
 
     - name: Upload Archive
-      uses: actions/upload-artifact@v7
+      uses: ./.github/actions/upload-archive
       with:
         name: v8_linux_x64_release
-        path: |
-          *.7z
-        retention-days: 7
 
   arm64-debug:
     runs-on: ubuntu-latest
@@ -173,12 +167,13 @@ jobs:
         mkdir sysroots
         cd sysroots
         sudo apt update
-        sudo apt install -y debootstrap qemu-user-static binfmt-support rsync g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
+        sudo apt install -y debootstrap qemu-user-binfmt rsync g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
+        sudo systemctl restart systemd-binfmt.service
         sudo debootstrap --variant=minbase --arch=amd64 trixie debian_trixie_amd64-sysroot http://deb.debian.org/debian
         sudo chroot debian_trixie_amd64-sysroot apt-get update
         sudo chroot debian_trixie_amd64-sysroot apt-get install -y --no-install-recommends libc6-dev libstdc++-14-dev zlib1g-dev
         sudo debootstrap --variant=minbase --arch=arm64 trixie debian_trixie_arm64-sysroot http://deb.debian.org/debian
-        sudo cp /usr/bin/qemu-aarch64-static debian_trixie_arm64-sysroot/usr/bin/
+        sudo chroot debian_trixie_arm64-sysroot /bin/true
         sudo chroot debian_trixie_arm64-sysroot apt-get update
         sudo chroot debian_trixie_arm64-sysroot apt-get install -y --no-install-recommends libc6-dev libstdc++-14-dev zlib1g-dev
 
@@ -219,12 +214,9 @@ jobs:
         7z a v8_linux_arm64_debug.7z ./v8/v8/out/arm64.debug/obj/libv8_monolith.a ./temp/include VERSION.txt
 
     - name: Upload Archive
-      uses: actions/upload-artifact@v7
+      uses: ./.github/actions/upload-archive
       with:
         name: v8_linux_arm64_debug
-        path: |
-          *.7z
-        retention-days: 7
 
   arm64-release:
     runs-on: ubuntu-latest
@@ -246,12 +238,13 @@ jobs:
         mkdir sysroots
         cd sysroots
         sudo apt update
-        sudo apt install -y debootstrap qemu-user-static binfmt-support rsync g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
+        sudo apt install -y debootstrap qemu-user-binfmt rsync g++-aarch64-linux-gnu gcc-aarch64-linux-gnu libstdc++-14-dev-arm64-cross libgcc-14-dev-arm64-cross
+        sudo systemctl restart systemd-binfmt.service
         sudo debootstrap --variant=minbase --arch=amd64 trixie debian_trixie_amd64-sysroot http://deb.debian.org/debian
         sudo chroot debian_trixie_amd64-sysroot apt-get update
         sudo chroot debian_trixie_amd64-sysroot apt-get install -y --no-install-recommends libc6-dev libstdc++-14-dev zlib1g-dev
         sudo debootstrap --variant=minbase --arch=arm64 trixie debian_trixie_arm64-sysroot http://deb.debian.org/debian
-        sudo cp /usr/bin/qemu-aarch64-static debian_trixie_arm64-sysroot/usr/bin/
+        sudo chroot debian_trixie_arm64-sysroot /bin/true
         sudo chroot debian_trixie_arm64-sysroot apt-get update
         sudo chroot debian_trixie_arm64-sysroot apt-get install -y --no-install-recommends libc6-dev libstdc++-14-dev zlib1g-dev
 
@@ -291,9 +284,6 @@ jobs:
         7z a v8_linux_arm64_release.7z ./v8/v8/out/arm64.release/obj/libv8_monolith.a ./temp/include VERSION.txt
 
     - name: Upload Archive
-      uses: actions/upload-artifact@v7
+      uses: ./.github/actions/upload-archive
       with:
         name: v8_linux_arm64_release
-        path: |
-          *.7z
-        retention-days: 7

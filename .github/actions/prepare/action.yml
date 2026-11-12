@@ -35,18 +35,6 @@ runs:
         printf '%s' "$GOOGLESOURCE_GITCOOKIES" > "$HOME/.gitcookies"
         git config --global http.cookiefile "$HOME/.gitcookies"
 
-    - name: Verify Googlesource auth (Unix-like)
-      if: ${{ runner.os != 'Windows' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        if [ -z "${GOOGLESOURCE_GITCOOKIES:-}" ]; then
-          echo "No Googlesource auth configured."
-          exit 0
-        fi
-        git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
-        git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
-
     - name: Configure Googlesource auth (Windows)
       if: ${{ runner.os == 'Windows' }}
       shell: pwsh
@@ -61,16 +49,32 @@ runs:
         Set-Content -Path $cookiePath -Value $env:GOOGLESOURCE_GITCOOKIES -NoNewline
         git config --global http.cookiefile $cookiePath
 
-    - name: Verify Googlesource auth (Windows)
-      if: ${{ runner.os == 'Windows' }}
-      shell: pwsh
+    - name: Verify Googlesource auth
+      if: inputs.googlesource_gitcookies != ''
+      shell: bash
       run: |
-        $cookiePath = Join-Path $HOME ".gitcookies"
-        if (-not (Test-Path $cookiePath)) {
-          Write-Host "Skipping auth verification."
+        if [[ ! -s "$HOME/.gitcookies" ]]; then
+          echo "Skipping auth verification."
           exit 0
+        fi
+
+        verify_remote() {
+          local url=$1 delay output status
+          for delay in 5 15 30 0; do
+            if output=$(LC_ALL=C git ls-remote "$url" HEAD 2>&1); then
+              printf '%s\n' "$output"
+              return 0
+            else
+              status=$?
+            fi
+            printf '%s\n' "$output" >&2
+            if [[ $delay == 0 || ! $output =~ (HTTP[[:space:]]|returned[[:space:]]error:[[:space:]])(502|503|504)([^0-9]|$) ]]; then
+              return "$status"
+            fi
+            echo "Retrying $url in ${delay}s." >&2
+            sleep "$delay"
+          done
         }
-        git ls-remote https://chromium.googlesource.com/a/chromium/src.git HEAD
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        git ls-remote https://chromium.googlesource.com/a/chromium/tools/build.git HEAD
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        verify_remote https://chromium.googlesource.com/a/chromium/src.git
+        verify_remote https://chromium.googlesource.com/a/chromium/tools/build.git

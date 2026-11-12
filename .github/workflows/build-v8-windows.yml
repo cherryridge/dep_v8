@@ -98,12 +98,9 @@ jobs:
         7z a v8_windows_x64_debug.7z .\v8\v8\out\x64.debug\obj\v8_monolith.lib .\temp\include VERSION.txt
 
     - name: Upload Archive
-      uses: actions/upload-artifact@v7
+      uses: ./.github/actions/upload-archive
       with:
         name: v8_windows_x64_debug
-        path: |
-          *.7z
-        retention-days: 7
 
   x64-release:
     runs-on: windows-2022
@@ -175,12 +172,9 @@ jobs:
         7z a v8_windows_x64_release.7z .\v8\v8\out\x64.release\obj\v8_monolith.lib .\temp\include VERSION.txt
 
     - name: Upload Archive
-      uses: actions/upload-artifact@v7
+      uses: ./.github/actions/upload-archive
       with:
         name: v8_windows_x64_release
-        path: |
-          *.7z
-        retention-days: 7
 
   arm64-debug:
     runs-on: windows-2022
@@ -239,12 +233,9 @@ jobs:
         7z a v8_windows_arm64_debug.7z .\v8\v8\out\arm64.debug\obj\v8_monolith.lib .\temp\include VERSION.txt
 
     - name: Upload Archive
-      uses: actions/upload-artifact@v7
+      uses: ./.github/actions/upload-archive
       with:
         name: v8_windows_arm64_debug
-        path: |
-          *.7z
-        retention-days: 7
 
   arm64-release:
     runs-on: windows-2022
@@ -303,9 +294,6 @@ jobs:
         7z a v8_windows_arm64_release.7z .\v8\v8\out\arm64.release\obj\v8_monolith.lib .\temp\include VERSION.txt
 
     - name: Upload Archive
-      uses: actions/upload-artifact@v7
+      uses: ./.github/actions/upload-archive
       with:
         name: v8_windows_arm64_release
-        path: |
-          *.7z
-        retention-days: 7

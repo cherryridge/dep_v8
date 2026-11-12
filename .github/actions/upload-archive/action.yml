@@ -1,0 +1,34 @@
+name: Upload V8 archive
+description: Upload the build archive and retry once after a failed upload.
+inputs:
+  name:
+    description: Artifact name and basename of the .7z archive
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Upload archive
+      id: upload
+      continue-on-error: true
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.name }}.7z
+        retention-days: 7
+        if-no-files-found: error
+
+    - name: Wait before retrying
+      if: steps.upload.outcome == 'failure'
+      shell: bash
+      run: sleep 60
+
+    - name: Retry archive upload
+      if: steps.upload.outcome == 'failure'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.name }}.7z
+        retention-days: 7
+        if-no-files-found: error
+        overwrite: true
